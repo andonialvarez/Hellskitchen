@@ -61,10 +61,7 @@ static var _map := {}
 
 
 static func by_id(id: String) -> Dictionary:
-	if _map.is_empty():
-		for it in LIST:
-			_map[it["id"]] = it
-	return _map.get(id, {})
+	return DataIndex.by_id(_map, LIST, id)
 
 
 static func describe(it: Dictionary) -> String:

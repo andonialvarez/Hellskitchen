@@ -211,8 +211,4 @@ func _open_settings() -> void:
 
 
 func _lbl(t: String, sz: int, col: Color) -> Label:
-	var l := Label.new()
-	l.text = t
-	l.add_theme_font_size_override("font_size", sz)
-	l.add_theme_color_override("font_color", col)
-	return l
+	return ThemeKit.label(t, sz, col)

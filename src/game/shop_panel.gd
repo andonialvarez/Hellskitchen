@@ -1,5 +1,5 @@
 class_name ShopPanel
-extends Control
+extends FullPanel
 ## La Despensa: cocineros (aparecen junto a la sartén y se pueden ascender a
 ## demonios mayores), especias y utensilios (suben el valor por clic / almas),
 ## decoración (sube las estrellas) y quién viene a comer (% por rareza).
@@ -13,47 +13,14 @@ var _shop_rows: Array = []
 
 
 func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	visible = false
-
-	var bg := ColorRect.new()
-	bg.color = Color(0.055, 0.032, 0.038, 0.99)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-
-	var mc := MarginContainer.new()
-	mc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for m in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
-		mc.add_theme_constant_override(m, 26)
-	add_child(mc)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 10)
-	mc.add_child(vb)
-
-	var head := HBoxContainer.new()
-	vb.add_child(head)
-	var title := _lbl("La Despensa", 24, ThemeKit.TEXT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	var vb := _build_frame("La Despensa", 26, 10, 0.99, Color(0.055, 0.032, 0.038))
 	_stars_lbl = _lbl("", 16, ThemeKit.SULFUR)
 	_stars_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(_stars_lbl)
-	var cb := Button.new()
-	cb.text = "Cerrar"
-	ThemeKit.style_button(cb, ThemeKit.CARD)
-	cb.pressed.connect(close)
-	head.add_child(cb)
+	_add_to_head(_stars_lbl)
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vb.add_child(scroll)
 	var inner := VBoxContainer.new()
-	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inner.add_theme_constant_override("separation", 12)
-	scroll.add_child(inner)
+	_add_scroll(vb, inner)
 
 	# --- cocineros ---
 	inner.add_child(_section("Cocineros  ·  cocinan solos junto a la sartén y se ascienden a demonios mayores"))
@@ -88,15 +55,6 @@ func _ready() -> void:
 	_decor_box = VBoxContainer.new()
 	_decor_box.add_theme_constant_override("separation", 5)
 	inner.add_child(_decor_box)
-
-
-func open() -> void:
-	visible = true
-	_rebuild()
-
-
-func close() -> void:
-	visible = false
 
 
 func _add_shop_card(u: Dictionary) -> void:
@@ -143,8 +101,7 @@ func _rebuild() -> void:
 
 
 func _rebuild_cooks() -> void:
-	for c in _cooks_box.get_children():
-		c.queue_free()
+	_clear(_cooks_box)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	_cooks_box.add_child(row)
@@ -195,8 +152,7 @@ func _rebuild_cooks() -> void:
 
 
 func _rebuild_clientela() -> void:
-	for c in _clientela_box.get_children():
-		c.queue_free()
+	_clear(_clientela_box)
 	for e in Demons.odds(Game.favor(), Game.effective_pacts()):
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
@@ -224,8 +180,7 @@ func _rebuild_clientela() -> void:
 
 
 func _rebuild_decor() -> void:
-	for c in _decor_box.get_children():
-		c.queue_free()
+	_clear(_decor_box)
 	for d in Decor.LIST:
 		var owned: bool = Game.decor_owned.has(d["id"])
 		var row := HBoxContainer.new()
@@ -252,20 +207,4 @@ func _rebuild_decor() -> void:
 
 
 func _section(text: String) -> Control:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	var l := _lbl(text, 13, ThemeKit.SULFUR)
-	v.add_child(l)
-	var line := ColorRect.new()
-	line.color = ThemeKit.LINE
-	line.custom_minimum_size = Vector2(0, 2)
-	v.add_child(line)
-	return v
-
-
-func _lbl(t: String, sz: int, col: Color) -> Label:
-	var l := Label.new()
-	l.text = t
-	l.add_theme_font_size_override("font_size", sz)
-	l.add_theme_color_override("font_color", col)
-	return l
+	return ThemeKit.section(text, 13)

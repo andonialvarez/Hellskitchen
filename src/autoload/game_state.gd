@@ -24,6 +24,7 @@ signal toast(text: String)
 signal slot_pulled(result: Dictionary)
 
 const SAVE_PATH := "user://save.json"
+const SAVE_TMP := "user://save.json.tmp"
 const SAVE_VERSION := 2
 const BASE_FIRE := 10.0
 const BASE_HP := 10.0
@@ -90,6 +91,7 @@ var pending_rewards := []    ## [{demon_id, count, opened, loot}]
 
 # ---------- cachés ----------
 var _m := {}                 ## suma de mods de nodos + objetos equipados
+var _batch_saving := false   ## true mientras se encadenan acciones que guardan
 
 
 func _ready() -> void:
@@ -411,8 +413,12 @@ func open_reward(index: int) -> void:
 
 
 func open_all_rewards() -> void:
+	# Un solo guardado al final, no uno por cada grupo abierto.
+	_batch_saving = true
 	for i in pending_rewards.size():
 		open_reward(i)
+	_batch_saving = false
+	save_game()
 
 
 func rewards_left() -> int:
@@ -671,6 +677,8 @@ func _apply_slot_result(r: Dictionary) -> void:
 #  GUARDADO
 # ==================================================================
 func save_game() -> void:
+	if _batch_saving:
+		return
 	var data := {
 		"v": SAVE_VERSION,
 		"souls": souls, "souls_life": souls_life, "souls_total": souls_total, "pacts": pacts,
@@ -686,23 +694,25 @@ func save_game() -> void:
 		"slot_cursed": slot_cursed,
 		"stats": stats.duplicate(),
 	}
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(data, "\t"))
-		f.close()
+	# Se escribe primero un archivo temporal y luego sustituye al bueno: si el
+	# juego se cierra a mitad de escritura, la partida anterior sigue intacta.
+	var f := FileAccess.open(SAVE_TMP, FileAccess.WRITE)
+	if f == null:
+		return
+	var ok := f.store_string(JSON.stringify(data))
+	f.close()
+	if not ok:
+		return
+	DirAccess.rename_absolute(ProjectSettings.globalize_path(SAVE_TMP), ProjectSettings.globalize_path(SAVE_PATH))
 
 
 func load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
+	var d := _read_save(SAVE_PATH)
+	if d.is_empty():
+		# El guardado se cortó justo entre escribir el temporal y renombrarlo.
+		d = _read_save(SAVE_TMP)
+	if d.is_empty():
 		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed: Variant = JSON.parse_string(f.get_as_text())
-	f.close()
-	if typeof(parsed) != TYPE_DICTIONARY:
-		return
-	var d: Dictionary = parsed
 	souls = float(d.get("souls", 0.0))
 	souls_life = float(d.get("souls_life", 0.0))
 	souls_total = float(d.get("souls_total", 0.0))
@@ -731,13 +741,27 @@ func load_game() -> void:
 			stats[k] = float(s[k])
 
 
+func _read_save(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return {}
+	return parsed
+
+
 func has_save() -> bool:
-	return FileAccess.file_exists(SAVE_PATH)
+	return FileAccess.file_exists(SAVE_PATH) or FileAccess.file_exists(SAVE_TMP)
 
 
 func _reset_everything() -> void:
-	if FileAccess.file_exists(SAVE_PATH):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	for path in [SAVE_PATH, SAVE_TMP]:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 	souls = 0.0
 	souls_life = 0.0
 	souls_total = 0.0

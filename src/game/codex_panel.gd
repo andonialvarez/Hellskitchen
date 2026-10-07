@@ -1,63 +1,20 @@
 class_name CodexPanel
-extends Control
+extends FullPanel
 ## El Códice: todo lo que has descubierto. Lo no descubierto se ve como
 ## una silueta gris sin nombre ni datos.
 
 
 func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	visible = false
-
-	var bg := ColorRect.new()
-	bg.color = Color(0.05, 0.03, 0.035, 0.99)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-
-	var mc := MarginContainer.new()
-	mc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for m in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
-		mc.add_theme_constant_override(m, 26)
-	add_child(mc)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 10)
-	mc.add_child(vb)
-
-	var head := HBoxContainer.new()
-	vb.add_child(head)
-	var title := _lbl("El Códice", 24, ThemeKit.TEXT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	var cb := Button.new()
-	cb.text = "Cerrar"
-	ThemeKit.style_button(cb, ThemeKit.CARD)
-	cb.pressed.connect(close)
-	head.add_child(cb)
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vb.add_child(scroll)
+	var vb := _build_frame("El Códice")
 	var inner := VBoxContainer.new()
-	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inner.add_theme_constant_override("separation", 12)
-	scroll.add_child(inner)
+	_add_scroll(vb, inner)
 
 	inner.add_child(_section_demons())
 	inner.add_child(_section("Objetos"))
 	inner.add_child(_grid_items())
 	inner.add_child(_section("Decoración"))
 	inner.add_child(_grid_decor())
-
-
-func open() -> void:
-	visible = true
-	_rebuild()
-
-
-func close() -> void:
-	visible = false
 
 
 var _demon_count_lbl: Label
@@ -107,18 +64,15 @@ func _grid_decor() -> Control:
 func _rebuild() -> void:
 	var found := Game.discovered_demons.size()
 	_demon_count_lbl.text = "%d / %d descubiertos" % [found, Demons.LIST.size()]
-	for c in _demon_grid.get_children():
-		c.queue_free()
+	_clear(_demon_grid)
 	for d in Demons.LIST:
 		_demon_grid.add_child(_demon_card(d))
 
-	for c in _item_grid.get_children():
-		c.queue_free()
+	_clear(_item_grid)
 	for it in Items.LIST:
 		_item_grid.add_child(_item_card(it, Game.items_owned.has(it["id"])))
 
-	for c in _decor_grid.get_children():
-		c.queue_free()
+	_clear(_decor_grid)
 	for d in Decor.LIST:
 		_decor_grid.add_child(_item_card(d, Game.decor_owned.has(d["id"]), true))
 
@@ -188,22 +142,7 @@ func _item_card(it: Dictionary, known: bool, is_decor := false) -> Control:
 
 
 func _section(text: String) -> Control:
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 2)
-	v.add_child(_lbl(text, 15, ThemeKit.SULFUR))
-	var line := ColorRect.new()
-	line.color = ThemeKit.LINE
-	line.custom_minimum_size = Vector2(0, 2)
-	v.add_child(line)
-	return v
-
-
-func _lbl(t: String, sz: int, col: Color) -> Label:
-	var l := Label.new()
-	l.text = t
-	l.add_theme_font_size_override("font_size", sz)
-	l.add_theme_color_override("font_color", col)
-	return l
+	return ThemeKit.section(text, 15)
 
 
 ## Icono pequeño: cabeza coloreada si se conoce, silueta gris plana si no.

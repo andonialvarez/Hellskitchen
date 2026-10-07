@@ -63,6 +63,26 @@ static func style_button(b: Button, col := BLOOD) -> void:
 	b.add_theme_font_size_override("font_size", 14)
 
 
+static func label(text: String, fsize: int, col: Color) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", fsize)
+	l.add_theme_color_override("font_color", col)
+	return l
+
+
+## Título de sección: texto en azufre con una línea debajo.
+static func section(text: String, fsize := 15) -> Control:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 2)
+	v.add_child(label(text, fsize, SULFUR))
+	var line := ColorRect.new()
+	line.color = LINE
+	line.custom_minimum_size = Vector2(0, 2)
+	v.add_child(line)
+	return v
+
+
 static func fill_round_rect(ci: CanvasItem, rect: Rect2, r: float, col: Color) -> void:
 	r = minf(r, minf(rect.size.x, rect.size.y) * 0.5)
 	if r <= 1.0:
