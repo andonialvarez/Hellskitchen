@@ -1,5 +1,5 @@
 class_name RewardsPanel
-extends Control
+extends FullPanel
 ## Recuento del turno a pantalla completa: lista agrupada por tipo de
 ## demonio. Clic en un grupo para revelar su botín (almas y/o objetos).
 
@@ -8,67 +8,24 @@ var _rows: Array = []
 
 
 func _ready() -> void:
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	mouse_filter = Control.MOUSE_FILTER_STOP
-	visible = false
-
-	var bg := ColorRect.new()
-	bg.color = Color(0.05, 0.03, 0.035, 0.985)
-	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-
-	var mc := MarginContainer.new()
-	mc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for m in ["margin_left", "margin_right", "margin_top", "margin_bottom"]:
-		mc.add_theme_constant_override(m, 30)
-	add_child(mc)
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
-	mc.add_child(vb)
-
-	var head := HBoxContainer.new()
-	vb.add_child(head)
-	var title := _lbl("Recuento del turno", 24, ThemeKit.TEXT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
+	var vb := _build_frame("Recuento del turno", 30, 12, 0.985)
 	var allb := Button.new()
 	allb.text = "Abrir todo"
 	ThemeKit.style_button(allb, ThemeKit.BLOOD)
 	allb.pressed.connect(func() -> void:
 		Game.open_all_rewards()
 		_rebuild())
-	head.add_child(allb)
-	var cb := Button.new()
-	cb.text = "Cerrar"
-	ThemeKit.style_button(cb, ThemeKit.CARD)
-	cb.pressed.connect(close)
-	head.add_child(cb)
+	_add_to_head(allb)
 
 	vb.add_child(_lbl("Clic en cada grupo para abrir su botín.", 12, ThemeKit.TEXT_DIM))
 
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vb.add_child(scroll)
 	_list = VBoxContainer.new()
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 8)
-	scroll.add_child(_list)
-
-
-func open() -> void:
-	visible = true
-	_rebuild()
-
-
-func close() -> void:
-	visible = false
+	_add_scroll(vb, _list)
 
 
 func _rebuild() -> void:
-	for c in _list.get_children():
-		c.queue_free()
+	_clear(_list)
 	_rows.clear()
 	if Game.pending_rewards.is_empty():
 		_list.add_child(_lbl("No serviste a ningún demonio este turno.", 13, ThemeKit.TEXT_DIM))
@@ -115,11 +72,3 @@ func _add_row(index: int) -> void:
 			Game.open_reward(index)
 			_rebuild())
 	_list.add_child(card)
-
-
-func _lbl(t: String, sz: int, col: Color) -> Label:
-	var l := Label.new()
-	l.text = t
-	l.add_theme_font_size_override("font_size", sz)
-	l.add_theme_color_override("font_color", col)
-	return l

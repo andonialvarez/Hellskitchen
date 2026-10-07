@@ -23,10 +23,7 @@ static var _map := {}
 
 
 static func by_id(id: String) -> Dictionary:
-	if _map.is_empty():
-		for u in LIST:
-			_map[u["id"]] = u
-	return _map.get(id, {})
+	return DataIndex.by_id(_map, LIST, id)
 
 
 static func cost(id: String, level: int) -> float:

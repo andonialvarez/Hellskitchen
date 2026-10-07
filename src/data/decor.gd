@@ -65,10 +65,7 @@ static var _map := {}
 
 
 static func by_id(id: String) -> Dictionary:
-	if _map.is_empty():
-		for d in LIST:
-			_map[d["id"]] = d
-	return _map.get(id, {})
+	return DataIndex.by_id(_map, LIST, id)
 
 
 static func total_stars(owned: Dictionary) -> float:

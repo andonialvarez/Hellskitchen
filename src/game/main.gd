@@ -24,7 +24,10 @@ var lbl_souls: Label
 var lbl_pacts: Label
 var lbl_stats: Label
 var lbl_stars: Label
-var _dyn := 0.0
+var _contra_btn: Button
+var _rewards_btn: Button
+var _hud_souls := -1.0
+var _kitchen_hidden := false
 
 
 func _ready() -> void:
@@ -87,16 +90,29 @@ func _ready() -> void:
 	_refresh()
 
 
-func _process(delta: float) -> void:
-	_update_hud()
+func _process(_delta: float) -> void:
+	# Las almas cambian en cada plato servido sin avisar con `changed`; el
+	# resto del HUD solo cambia con `changed` (ver _refresh).
+	if Game.souls != _hud_souls:
+		_hud_souls = Game.souls
+		lbl_souls.text = "%s almas" % Nums.fmt(Game.souls)
 	_dispatch_btn.visible = Game.can_dispatch()
 	if _dispatch_btn.visible:
 		_dispatch_btn.reset_size()
 		_dispatch_btn.position = _kitchen.pan_screen_pos() + Vector2(-_dispatch_btn.size.x * 0.5, 90)
-	_dyn += delta
-	if _dyn >= 0.2:
-		_dyn = 0.0
-		_refresh_btnbar()
+	_update_kitchen_visibility()
+
+
+## Con un panel a pantalla completa encima, la cocina no se ve: se deja de
+## dibujar y de animar (demonio y brasas incluidos) hasta que se cierre.
+func _update_kitchen_visibility() -> void:
+	var covered := _tree.visible or _inv.visible or _rewards.visible \
+		or _shop.visible or _codex.visible or _slot.visible
+	if covered == _kitchen_hidden:
+		return
+	_kitchen_hidden = covered
+	_kitchen.visible = not covered
+	_kitchen.process_mode = Node.PROCESS_MODE_DISABLED if covered else Node.PROCESS_MODE_INHERIT
 
 
 func _unhandled_input(e: InputEvent) -> void:
@@ -160,6 +176,7 @@ func _build_hud() -> void:
 
 
 func _update_hud() -> void:
+	_hud_souls = Game.souls
 	lbl_souls.text = "%s almas" % Nums.fmt(Game.souls)
 	lbl_pacts.text = "%d pactos" % Game.pacts
 	var pips := Decor.star_pips(Game.stars())
@@ -179,11 +196,10 @@ func _build_btnbar() -> void:
 	_mk_barbtn("Árbol", func() -> void: _open_only(_tree))
 	_mk_barbtn("Despensa", func() -> void: _open_only(_shop))
 	_mk_barbtn("Inventario", func() -> void: _open_only(_inv))
-	_mk_barbtn("Recompensas", func() -> void: _open_only(_rewards))
+	_rewards_btn = _mk_barbtn("Recompensas", func() -> void: _open_only(_rewards))
 	_mk_barbtn("Códice", func() -> void: _open_only(_codex))
 	_mk_barbtn("Tragaperras", func() -> void: _open_only(_slot))
-	var contra := _mk_barbtn("Contrato", func() -> void: Game.prestige())
-	contra.name = "contra"
+	_contra_btn = _mk_barbtn("Contrato", func() -> void: Game.prestige())
 	_mk_barbtn("Menú", func() -> void: get_tree().change_scene_to_file("res://src/game/menu.tscn"))
 	var mute := _mk_barbtn("Mudo" if Audio.muted else "Sonido", func() -> void: pass)
 	mute.name = "mute"
@@ -211,18 +227,14 @@ func _refresh_btnbar() -> void:
 	_btnbar.visible = not Game.shift_active
 	if Game.shift_active:
 		return
-	var contra := _btnbar.get_node_or_null("contra")
-	if contra:
-		if Game.can_prestige():
-			contra.text = "Contrato  +%d" % Game.pacts_gain()
-			contra.disabled = false
-		else:
-			contra.text = "Contrato"
-			contra.disabled = true
-	for b in _btnbar.get_children():
-		if b is Button and b.text.begins_with("Recompensas"):
-			var n := Game.rewards_left()
-			b.text = "Recompensas (%d)" % n if n > 0 else "Recompensas"
+	if Game.can_prestige():
+		_contra_btn.text = "Contrato  +%d" % Game.pacts_gain()
+		_contra_btn.disabled = false
+	else:
+		_contra_btn.text = "Contrato"
+		_contra_btn.disabled = true
+	var n := Game.rewards_left()
+	_rewards_btn.text = "Recompensas (%d)" % n if n > 0 else "Recompensas"
 
 
 # ==================================================================
@@ -344,6 +356,7 @@ func _show_toast(text: String) -> void:
 
 
 func _refresh() -> void:
+	_update_hud()
 	_refresh_btnbar()
 	_start_btn.visible = not Game.shift_active
 
@@ -358,11 +371,7 @@ func _icon(kind: String, px: float) -> Control:
 
 
 func _mk(text: String, fsize: int, col: Color) -> Label:
-	var l := Label.new()
-	l.text = text
-	l.add_theme_font_size_override("font_size", fsize)
-	l.add_theme_color_override("font_color", col)
-	return l
+	return ThemeKit.label(text, fsize, col)
 
 
 class _IconBox extends Control:
