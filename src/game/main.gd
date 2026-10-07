@@ -19,6 +19,8 @@ var _rewards: RewardsPanel
 var _shop: ShopPanel
 var _codex: CodexPanel
 var _slot: SlotPanel
+var _pause: PauseMenu
+var _pause_btn: Button
 
 var lbl_souls: Label
 var lbl_pacts: Label
@@ -59,6 +61,14 @@ func _ready() -> void:
 		_close_panels())
 	add_child(_start_btn)
 
+	_pause_btn = Button.new()
+	_pause_btn.text = "  II  Pausa  "
+	_pause_btn.add_theme_font_size_override("font_size", 13)
+	ThemeKit.style_button(_pause_btn, ThemeKit.CARD)
+	_pause_btn.pressed.connect(func() -> void: _pause.pause())
+	_pause_btn.visible = false
+	add_child(_pause_btn)
+
 	_toast_box = VBoxContainer.new()
 	_toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast_box.add_theme_constant_override("separation", 4)
@@ -72,6 +82,8 @@ func _ready() -> void:
 	_shop = ShopPanel.new(); add_child(_shop)
 	_codex = CodexPanel.new(); add_child(_codex)
 	_slot = SlotPanel.new(); add_child(_slot)
+	_pause = PauseMenu.new(); add_child(_pause)
+	_pause.leave_to_menu.connect(_leave_to_menu)
 
 	Game.changed.connect(_refresh)
 	Game.shift_started.connect(_on_shift_started)
@@ -104,6 +116,14 @@ func _unhandled_input(e: InputEvent) -> void:
 		Game.debug_wipe()
 
 
+## Salir al menú a mitad de turno: el turno se cierra (lo servido queda en
+## Recompensas) para que el motor no siga quemando fuego en el menú.
+func _leave_to_menu() -> void:
+	Game.shift_ended.disconnect(_on_shift_ended)
+	Game.end_shift("abandono")
+	get_tree().change_scene_to_file("res://src/game/menu.tscn")
+
+
 func _close_panels() -> void:
 	_tree.close()
 	_inv.close()
@@ -121,6 +141,8 @@ func _relayout() -> void:
 	_hud.position = Vector2(14, 66)
 	_start_btn.reset_size()
 	_start_btn.position = Vector2((s.x - _start_btn.size.x) * 0.5, s.y * 0.42)
+	_pause_btn.reset_size()
+	_pause_btn.position = Vector2(s.x - _pause_btn.size.x - 14, 46)
 	_btnbar.position = Vector2(14, s.y - 52)
 	_toast_box.position = Vector2(14, s.y - 200.0)
 	_toast_box.size = Vector2(320, 0)
@@ -237,7 +259,7 @@ func _on_served(d: Dictionary) -> void:
 	var next := Game.current_demon
 	_kitchen.spawn_food_fly(FoodProps.random_kind())
 	_spawn_float("Tasty", _kitchen.demon_screen_pos(), Demons.color(d.get("rarity", "comun")))
-	var t := get_tree().create_timer(0.24)
+	var t := get_tree().create_timer(0.24, false)
 	t.timeout.connect(func() -> void:
 		_kitchen.demon_react()
 		_kitchen.feed_transition(next))
@@ -251,15 +273,17 @@ func _on_dispatched(d: Dictionary) -> void:
 func _on_shift_started() -> void:
 	_kitchen.set_demon(Game.current_demon)
 	_start_btn.visible = false
+	_pause_btn.visible = true
 	_hide_overlay()
 
 
 func _on_shift_ended(reason: String, served: int, disp: int) -> void:
 	_kitchen.set_demon({})
 	_start_btn.visible = true
+	_pause_btn.visible = false
 	var t := "SE APAGÓ EL FUEGO" if reason == "fuego" else ("TE HAN MATADO" if reason == "muerte" else "TURNO CERRADO")
 	_show_overlay(t, "%d servidos  ·  %d despachados  ·  abre el recuento" % [served, disp], 2.4)
-	await get_tree().create_timer(2.7).timeout
+	await get_tree().create_timer(2.7, false).timeout
 	if Game.rewards_left() > 0:
 		_open_only(_rewards)
 
@@ -346,6 +370,7 @@ func _show_toast(text: String) -> void:
 func _refresh() -> void:
 	_refresh_btnbar()
 	_start_btn.visible = not Game.shift_active
+	_pause_btn.visible = Game.shift_active
 
 
 # ==================================================================
