@@ -77,7 +77,7 @@ static func describe(it: Dictionary) -> String:
 	}
 	var pcts := {
 		"souls_pct": "almas", "item_pct": "prob. objeto", "double_pct": "ración doble",
-		"dispatch_pct": "almas al despachar", "pact_gain_pct": "pactos al firmar",
+		"dispatch_pct": "almas al despachar", "pact_gain_pct": "poder de firma",
 		"tree_cost_pct": "coste del árbol", "shop_cost_pct": "coste de la Despensa",
 		"cook_cost_pct": "coste de cocineros", "cook_rate_pct": "producción de cocineros",
 	}

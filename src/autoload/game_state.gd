@@ -28,8 +28,13 @@ const SAVE_VERSION := 2
 const BASE_FIRE := 10.0
 const BASE_HP := 10.0
 const DMG_TICK := 0.5
-const PRESTIGE_K := 1.0e4
-const PRESTIGE_MIN := 1.0e4
+## Almas en la run necesarias para firmar el contrato que te lleva al pacto
+## N+1 (índice = pactos actuales). Cada contrato da UN pacto. Calibrado con
+## tools/balance_sim (pacto 8 hacia las 4 h). Más allá de la tabla, ×10 por pacto.
+const PACT_THRESHOLDS := [1.1e5, 1.2e7, 9.7e8, 1.1e10, 1.1e11, 5.6e11, 3.6e12, 2.5e13]
+## Como mucho se emplata un demonio cada SERVE_GAP segundos; la cocción que
+## sobra mientras tanto se pierde. Pone techo a los demonios por turno.
+const SERVE_GAP := 0.25
 const AUTOSAVE_EVERY := 6.0
 const QUEUE_LEN := 6
 
@@ -83,6 +88,7 @@ var shift_souls := 0.0       ## almas ganadas al despachar durante el turno
 var _dmg_t := 0.0
 var _autosave_t := 0.0
 var _first_of_shift := true
+var _serve_cd := 0.0         ## tiempo hasta poder emplatar el siguiente demonio
 var _active_boon := ""       ## bendición de tragaperras aplicada a la run en curso
 
 # ---------- entre turnos ----------
@@ -102,10 +108,13 @@ func _process(delta: float) -> void:
 		return
 	fire_left -= delta
 	demon_wait += delta
+	_serve_cd = maxf(0.0, _serve_cd - delta)
 
 	var auto := autocook_rate()
 	if auto > 0.0 and not current_demon.is_empty():
 		_add_cook(auto * delta)
+	elif _serve_cd <= 0.0 and not current_demon.is_empty() and cook_progress >= _need():
+		_add_cook(0.0)   # plato que esperaba a terminar de emplatar el anterior
 
 	# daño del demonio impaciente
 	if not current_demon.is_empty():
@@ -170,7 +179,7 @@ func cooks_autocook() -> float:
 	return t * (1.0 + float(_m.get("cook_rate_pct", 0.0)))
 func favor() -> float: return float(_m.get("favor_add", 0.0)) + stars() * (1.5 + float(_m.get("star_favor_mult", 0.0)) * 1.5)
 func stars() -> float: return Decor.total_stars(decor_owned)
-func effective_pacts() -> int: return pacts + int(stars() / 2.5)
+func effective_pacts() -> int: return pacts   ## las estrellas solo dan favor
 func max_cooks() -> int: return MAX_COOKS + int(_m.get("max_cooks_add", 0.0))
 func queue_len() -> int: return QUEUE_LEN + int(_m.get("queue_add", 0.0))
 func cost_discount(kind: String) -> float: return maxf(0.25, 1.0 - float(_m.get(kind, 0.0)))
@@ -206,6 +215,7 @@ func start_shift() -> void:
 	shift_souls = 0.0
 	_dmg_t = 0.0
 	_first_of_shift = true
+	_serve_cd = 0.0
 	demon_queue.clear()
 	_refill_queue()
 	_spawn_demon()
@@ -299,6 +309,10 @@ func _add_cook(amount: float) -> void:
 	cook_progress += amount
 	var guard := 0
 	while not current_demon.is_empty() and cook_progress >= _need() and guard < 8:
+		if _serve_cd > 0.0:
+			cook_progress = _need()   # emplatando: lo que sobra se pierde
+			break
+		_serve_cd = SERVE_GAP
 		guard += 1
 		cook_progress -= _need()
 		var served := current_demon
@@ -374,9 +388,11 @@ func open_reward(index: int) -> void:
 			continue
 		# tipo de botín especial: objeto / vale de despensa / decoración
 		var roll := randf()
-		var decor_w := 0.12 + float(tier) * 0.05
+		# con tope: si no, desde Asmodeo todo el botín era decoración/vales y
+		# los objetos míticos e infernales no caían nunca
+		var decor_w := minf(0.15, 0.06 + float(tier) * 0.006)
 		if roll < decor_w:
-			var did := Decor.random_undropped(decor_owned)
+			var did := Decor.random_undropped(decor_owned, String(demon["rarity"]))
 			if did != "":
 				decor_owned[did] = true
 				got_decor.append(did)
@@ -525,7 +541,7 @@ func cook_upgrade_cost(i: int) -> float:
 	var t := int(cooks[i])
 	if t >= COOK_TIERS.size() - 1:
 		return INF
-	return ceilf(140.0 * pow(4.3, float(t + 1)) * cost_discount("cook_cost_pct"))
+	return ceilf(140.0 * pow(6.0, float(t + 1)) * cost_discount("cook_cost_pct"))
 
 
 func can_upgrade_cook(i: int) -> bool:
@@ -562,19 +578,20 @@ func buy_decor(id: String) -> void:
 # ==================================================================
 #  CONTRATO (prestigio)
 # ==================================================================
+## pact_gain_pct ("poder de firma") abarata el umbral: se divide entre 1 + suma.
 func prestige_threshold() -> float:
-	return PRESTIGE_MIN * pow(2.5, float(pacts))
+	var n := PACT_THRESHOLDS.size()
+	var base := float(PACT_THRESHOLDS[mini(pacts, n - 1)]) * pow(10.0, float(maxi(0, pacts - n + 1)))
+	return base / (1.0 + float(_m.get("pact_gain_pct", 0.0)))
 
 
 func can_prestige() -> bool:
 	return souls_life >= prestige_threshold()
 
 
+## Cada contrato firmado da exactamente un pacto.
 func pacts_gain() -> int:
-	if souls_life < PRESTIGE_MIN:
-		return 0
-	var g := pow(souls_life / PRESTIGE_K, 0.4) * (1.0 + float(_m.get("pact_gain_pct", 0.0)))
-	return maxi(0, int(floorf(g)))
+	return 1 if can_prestige() else 0
 
 
 func prestige() -> void:

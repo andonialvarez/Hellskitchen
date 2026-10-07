@@ -8,8 +8,15 @@ extends RefCounted
 ##             parent, p (posición en el lienzo del árbol).
 
 const ROOT_COST := 6.0
-const SUB_COST := [14.0, 34.0, 82.0, 200.0, 480.0, 1150.0, 2750.0, 6600.0,
-	15800.0, 38000.0, 91000.0, 218000.0, 524000.0, 1260000.0]
+## Coste de cada nodo según su POSICIÓN en la cadena de la rama (sub-rama A
+## y luego B, 28 nodos): 14 · 2,67^i. La B cuelga del último nodo de la A, así
+## que sigue encareciéndose en vez de volver a empezar barata.
+const SUB_COST := [
+	14.0, 37.0, 100.0, 270.0, 710.0, 1900.0, 5100.0,
+	14000.0, 36000.0, 97000.0, 260000.0, 690000.0, 1.8e6, 4.9e6,
+	1.3e7, 3.5e7, 9.3e7, 2.5e8, 6.7e8, 1.8e9, 4.7e9,
+	1.3e10, 3.4e10, 9e10, 2.4e11, 6.4e11, 1.7e12, 4.6e12,
+]
 
 ## Radio de las 5 puntas del pentagrama (desde el fogón central).
 const TIP_R := 560.0
@@ -172,22 +179,22 @@ const DEF := [
 	},
 	{
 		"key": "alma", "title": "Alma",
-		"root": {"n": "Chispa de alma", "d": "+10% pactos ganados al firmar", "m": {"pact_gain_pct": 0.10}},
+		"root": {"n": "Chispa de alma", "d": "+10% poder de firma (contrato más barato)", "m": {"pact_gain_pct": 0.10}},
 		"a": {"title": "Contrato eterno", "nodes": [
 			{"n": "Letra pequeña",    "d": "−5% coste del árbol",       "m": {"tree_cost_pct": 0.05}},
-			{"n": "Cláusula oscura",  "d": "+15% pactos ganados",       "m": {"pact_gain_pct": 0.15}},
+			{"n": "Cláusula oscura",  "d": "+15% poder de firma (contrato más barato)",       "m": {"pact_gain_pct": 0.15}},
 			{"n": "Notario del abismo","d": "−8% coste del árbol",      "m": {"tree_cost_pct": 0.08}},
-			{"n": "Pacto de sangre",  "d": "+25% pactos ganados",       "m": {"pact_gain_pct": 0.25}},
+			{"n": "Pacto de sangre",  "d": "+25% poder de firma (contrato más barato)",       "m": {"pact_gain_pct": 0.25}},
 			{"n": "Sello infernal",   "d": "−12% coste del árbol",      "m": {"tree_cost_pct": 0.12}},
-			{"n": "Contrato eterno",  "d": "+40% pactos ganados",       "m": {"pact_gain_pct": 0.40}},
+			{"n": "Contrato eterno",  "d": "+40% poder de firma (contrato más barato)",       "m": {"pact_gain_pct": 0.40}},
 			{"n": "Abogado del diablo","d": "−18% coste del árbol",     "m": {"tree_cost_pct": 0.18}},
-			{"n": "Pacto supremo",    "d": "+60% pactos ganados",       "m": {"pact_gain_pct": 0.60}},
+			{"n": "Pacto supremo",    "d": "+60% poder de firma (contrato más barato)",       "m": {"pact_gain_pct": 0.60}},
 			{"n": "Cláusula final",   "d": "−10% coste del árbol",      "m": {"tree_cost_pct": 0.10}},
-			{"n": "Pacto de sangre eterna","d": "+80% pactos ganados",  "m": {"pact_gain_pct": 0.80}},
+			{"n": "Pacto de sangre eterna","d": "+80% poder de firma (contrato más barato)",  "m": {"pact_gain_pct": 0.80}},
 			{"n": "Sello del abismo", "d": "−8% coste del árbol",       "m": {"tree_cost_pct": 0.08}},
-			{"n": "Contrato irrevocable","d": "+120% pactos ganados",   "m": {"pact_gain_pct": 1.20}},
+			{"n": "Contrato irrevocable","d": "+120% poder de firma (contrato más barato)",   "m": {"pact_gain_pct": 1.20}},
 			{"n": "Última firma",     "d": "−10% coste del árbol",      "m": {"tree_cost_pct": 0.10}},
-			{"n": "El Pacto Definitivo","d": "+180% pactos ganados",    "m": {"pact_gain_pct": 1.80}},
+			{"n": "El Pacto Definitivo","d": "+180% poder de firma (contrato más barato)",    "m": {"pact_gain_pct": 1.80}},
 		]},
 		"b": {"title": "Favor real", "nodes": [
 			{"n": "Encanto",          "d": "+20% favor por estrella",   "m": {"star_favor_mult": 0.20}},
@@ -301,7 +308,7 @@ static func _build() -> void:
 				var nd: Dictionary = sb["nodes"][k]
 				var nid := "%s_%s_%d" % [key, side, k]
 				_push({"id": nid, "branch": key, "sub": sb["title"],
-					"name": nd["n"], "desc": nd["d"], "cost": SUB_COST[mini(k, SUB_COST.size() - 1)],
+					"name": nd["n"], "desc": nd["d"], "cost": SUB_COST[mini(idx - 1, SUB_COST.size() - 1)],
 					"mods": nd["m"], "parent": prev, "p": pos})
 				prev = nid
 
