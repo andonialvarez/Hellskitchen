@@ -21,17 +21,17 @@ El jugador simulado:
 No simula la tragaperras ni las bendiciones.
 
 ```
-python3 tools/balance_sim/sim.py                      # números actuales
-python3 tools/balance_sim/sim.py --variant propuesta  # con los cambios propuestos
+python3 tools/balance_sim/sim.py                      # números actuales del juego
+python3 tools/balance_sim/sim.py --variant antes      # números de antes del ajuste
 python3 tools/balance_sim/sim.py --trace 15           # turno a turno
 python3 tools/balance_sim/calibrar.py 7 2.67          # recalcula la tabla de umbrales
 ```
 
-## Lo que pasa hoy
+## Lo que pasaba antes del ajuste
 
-Con los números actuales todo el contenido se consume en unos 10 minutos:
+Con los números del primer commit todo el contenido se consume en unos 10 minutos:
 
-| Hito | Ahora |
+| Hito | Antes |
 |---|---|
 | Primer contrato | ~2,5 min |
 | Segundo contrato | ~3,5 min, y salta de 1 a **48–128 pactos** de golpe |
@@ -73,12 +73,12 @@ El Trono Definitivo, de 9,5 ★).
 - Los objetos se equipan solos y se suman todos, así que el inventario no plantea decisiones.
 - Al final los turnos duran ~5 min (el fuego acumula +300 s).
 
-## Propuesta
+## Cambios aplicados (aprobados por Andoni el 2026-10-07)
 
 Objetivo que he tomado por defecto (cámbialo si quieres otro ritmo): primer contrato a los
 ~8–10 min, un tramo nuevo de demonios por contrato, y El Cocinero Original hacia las 4–4,5 h.
 
-| # | Cambio | Dónde | Ahora → Propuesto |
+| # | Cambio | Dónde | Antes → Ahora |
 |---|---|---|---|
 | 1 | Arreglar la caída de objetos | `game_state.gd` `open_reward` | `0.12 + tier*0.05` → `minf(0.15, 0.06 + tier*0.006)` |
 | 2 | La decoración cae por rareza, como los objetos | `decor.gd` `random_undropped` | cualquiera → solo rareza ≤ la del demonio |
@@ -98,9 +98,9 @@ Tabla de umbrales (almas en la run para firmar el contrato que te lleva al pacto
 
 No toco la tabla de demonios, ni los objetos, ni la Despensa. El contrato sigue reseteando
 solo las almas (probé a resetear también cocineros y Despensa y apenas cambia el ritmo, así
-que no lo propongo).
+que no lo he cambiado).
 
-### Resultado simulado con la propuesta
+### Resultado simulado con los cambios
 
 Mediana de 3 partidas a 5 clics/s:
 

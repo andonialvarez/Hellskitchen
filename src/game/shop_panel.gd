@@ -84,7 +84,7 @@ func _ready() -> void:
 	inner.add_child(_clientela_box)
 
 	# --- decoración ---
-	inner.add_child(_section("Decoración del local  ·  más estrellas → demonios de mayor rango"))
+	inner.add_child(_section("Decoración del local  ·  más estrellas → más favor (demonios mejores)"))
 	_decor_box = VBoxContainer.new()
 	_decor_box.add_theme_constant_override("separation", 5)
 	inner.add_child(_decor_box)

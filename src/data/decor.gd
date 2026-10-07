@@ -83,10 +83,13 @@ static func star_pips(stars: float) -> int:
 	return int(clampf(round(stars / STAR_CAP * 5.0), 0.0, 5.0))
 
 
-static func random_undropped(owned: Dictionary) -> String:
+## Decoración que aún no tienes, de rareza `max_rarity` o menor (los demonios
+## pequeños no sueltan las piezas grandes). Sin rareza: cualquiera.
+static func random_undropped(owned: Dictionary, max_rarity := "") -> String:
+	var top := Demons.RARITY_ORDER.find(max_rarity) if max_rarity != "" else 99
 	var pool: Array = []
 	for d in LIST:
-		if not owned.has(d["id"]):
+		if not owned.has(d["id"]) and Demons.RARITY_ORDER.find(d["rarity"]) <= top:
 			pool.append(d["id"])
 	if pool.is_empty():
 		return ""

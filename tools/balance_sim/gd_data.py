@@ -77,7 +77,8 @@ def load():
         "sub_cost": const("src/data/tree.gd", "SUB_COST"),
         "cook_rate": const(gs, "COOK_RATE"),
     }
-    for k in ["BASE_FIRE", "BASE_HP", "DMG_TICK", "PRESTIGE_K", "PRESTIGE_MIN",
+    d["PRESTIGE_K"] = d["PRESTIGE_MIN"] = 1.0e4  # solo para la variante "antes"
+    for k in ["BASE_FIRE", "BASE_HP", "DMG_TICK",
               "CROWN_CHANCE", "COOK_BUY_BASE", "COOK_BUY_GROWTH", "MAX_COOKS"]:
         d[k] = scalar(gs, k)
     build_tree(d)
@@ -96,8 +97,8 @@ def build_tree(d):
         for side in ["a", "b"]:
             for k, nd in enumerate(b[side]["nodes"]):
                 nid = f"{key}_{side}_{k}"
-                # chain_cost: el coste sigue la posición en la cadena (a0..a13, b0..b13)
-                ci = k + (len(b["a"]["nodes"]) if side == "b" and d.get("chain_cost") else 0)
+                # como tree.gd: el coste sigue la posición en la cadena (a0..a13, b0..b13)
+                ci = k + (len(b["a"]["nodes"]) if side == "b" and d.get("chain_cost", True) else 0)
                 nodes.append({"id": nid, "name": nd["n"],
                               "cost": d["sub_cost"][min(ci, len(d["sub_cost"]) - 1)],
                               "mods": nd["m"], "parent": prev})

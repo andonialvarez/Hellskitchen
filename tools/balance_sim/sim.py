@@ -7,7 +7,7 @@ barato entre turnos y firma el contrato en cuanto puede).
 Uso:
     python3 tools/balance_sim/sim.py                 # números actuales
     python3 tools/balance_sim/sim.py --cps 4 --hours 10 --seeds 5
-    python3 tools/balance_sim/sim.py --variant propuesta
+    python3 tools/balance_sim/sim.py --variant antes   # números de antes del ajuste
 
 Las tablas (demonios, objetos, árbol, despensa, decoración) se leen de los
 .gd; las constantes escritas a mano dentro de funciones de game_state.gd
@@ -24,23 +24,25 @@ import gd_data
 
 # Constantes que en game_state.gd están dentro de funciones, no como const.
 KNOBS = {
-    "prestige_base": 2.5,       # prestige_threshold: PRESTIGE_MIN * base^pacts
-    "prestige_exp": 0.4,        # pacts_gain: (souls_life / K)^exp
+    # --- como está ahora game_state.gd ---
     "pact_souls": 0.20,         # souls_mult: +20% almas por pacto
     "dispatch_frac": 0.15,      # dispatch: 15% de las almas del demonio
     "favor_slope": 0.14,        # Demons.roll: peso * (1 + favor * i * slope)
-    "stars_per_pact": 2.5,      # effective_pacts: pacts + stars / 2.5
     "star_favor": 1.5,          # favor: stars * 1.5
-    "cook_up_base": 140.0,      # cook_upgrade_cost: 140 * 4.3^(t+1)
-    "cook_up_growth": 4.3,
+    "cook_up_base": 140.0,      # cook_upgrade_cost: 140 * 6^(t+1)
+    "cook_up_growth": 6.0,
+    "stars_unlock": False,      # effective_pacts: las estrellas NO suman pactos
+    "stars_per_pact": 2.5,      #   (antes: pacts + stars / 2.5)
+    "one_pact": True,           # cada contrato da 1 pacto; pact_gain_pct abarata el umbral
+    "thresholds": gd_data.const("src/autoload/game_state.gd", "PACT_THRESHOLDS"),
+    "decor_w": (0.06, 0.006, 0.15),  # open_reward: min(cap, base + tier*slope) es decoración
+    "decor_by_rarity": True,    # la decoración cae por rareza, como los objetos
+    "serve_cap": 1.0 / gd_data.scalar("src/autoload/game_state.gd", "SERVE_GAP"),  # platos/s
+    # --- solo para comparar con la versión anterior (variante "antes") ---
+    "prestige_base": 2.5,       # umbral antiguo: 10K * base^pacts
+    "prestige_exp": 0.4,        # ganancia antigua: (almas / 10K)^exp
+    "gain_vs_threshold": False,
     "prestige_resets": [],      # qué más resetea el contrato (además de almas)
-    "stars_unlock": True,       # las estrellas suman pactos efectivos
-    "gain_vs_threshold": False, # pacts_gain mide souls_life contra el umbral (no contra K)
-    "one_pact": False,          # cada contrato da 1 pacto; pact_gain_pct abarata el umbral
-    "thresholds": None,
-    "decor_w": (0.12, 0.05, 9.0),
-    "serve_cap": None,
-    "decor_by_rarity": False,   # la decoración cae por rareza, como los objetos          # máx. demonios servidos por segundo (None = 8 por frame, como ahora)  # open_reward: min(cap, base + tier * slope) del botín es decoración         # tabla explícita de umbrales por pacto (sustituye a base^pacts)
 }
 
 
@@ -408,24 +410,22 @@ def report(data, res):
         print(f"  {d['name']:<30} (pacto {d['pact']}) {hms(t) if t is not None else '—':>8}")
 
 
-def _propuesta_patch(d):
-    import variants
-    variants.chain_costs(d, growth=2.67)
-    return variants.finish(d)
+def _antes_patch(d):
+    # costes del árbol del primer commit: 14 valores por sub-rama, la B vuelve a empezar
+    d["sub_cost"] = [14.0, 34.0, 82.0, 200.0, 480.0, 1150.0, 2750.0, 6600.0,
+                     15800.0, 38000.0, 91000.0, 218000.0, 524000.0, 1260000.0]
+    d["chain_cost"] = False
+    gd_data.build_tree(d)
+    return d
 
 
-# Paquete propuesto (ver INFORME.md). Umbrales calibrados con calibrar.py.
-PROPUESTA = {
-    "stars_unlock": False,
-    "one_pact": True,
-    "thresholds": [1.1e5, 1.2e7, 9.7e8, 1.1e10, 1.1e11, 5.6e11, 3.6e12, 2.5e13],
-    "cook_up_growth": 6.0,
-    "decor_w": (0.06, 0.006, 0.15),
-    "decor_by_rarity": True,
-    "serve_cap": 4.0,
+# Números del primer commit (antes del ajuste de equilibrio), para comparar.
+ANTES = {
+    "cook_up_growth": 4.3, "stars_unlock": True, "one_pact": False, "thresholds": None,
+    "decor_w": (0.12, 0.05, 9.0), "decor_by_rarity": False, "serve_cap": None,
 }
 
-VARIANTS = {"actual": ({}, None), "propuesta": (PROPUESTA, _propuesta_patch)}
+VARIANTS = {"actual": ({}, None), "antes": (ANTES, _antes_patch)}
 
 
 def main():
