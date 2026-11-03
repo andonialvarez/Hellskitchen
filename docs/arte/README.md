@@ -70,13 +70,15 @@ Colores de rareza (para auras y marcos): común `#9a8d84`, raro `#4bb0c9`, épic
 
 ### Tamaños y nombres de archivo
 
+La lista completa y definitiva (298 imágenes, con ruta, lienzo y tamaño final) está en [manifest.csv](manifest.csv), y el encargo para ChatGPT en [prompt_chatgpt.md](prompt_chatgpt.md). La tabla de abajo es el resumen.
+
 Nombra cada archivo con el **id del código**: así se cargan solos (ver sección 4).
 
 | Grupo | Carpeta | Nombre | Tamaño del PNG |
 |---|---|---|---|
-| Demonios | `assets/sprites/demons/` | `<id>.png` (p. ej. `diablillo.png`) | 512×512, figura de pie, pies abajo del todo |
+| Demonios | `assets/sprites/demons/<id>/` | `idle.png`, `eat.png`, `angry.png`, `hit.png` | 512×512, figura de pie, pies abajo del todo |
 | Cabezas mini | `assets/sprites/demons/heads/` | `<id>.png` | 128×128 (recorte de la cabeza del sprite grande) |
-| Cocineros | `assets/sprites/cooks/` | `<id>.png` | 256×256 |
+| Cocineros | `assets/sprites/cooks/<id>/` | `idle.png`, `cook.png` | 256×256 |
 | Comida | `assets/sprites/food/` | `<kind>.png` | 128×128 |
 | Sartén | `assets/sprites/kitchen/` | `pan.png` | 512×512 |
 | Fondos | `assets/sprites/bg/` | `kitchen.png`, `menu.png`, `tree.png`, `slots.png` | 1920×1080 |
@@ -127,7 +129,7 @@ static func draw_fit(ci: CanvasItem, t: Texture2D, rect: Rect2) -> void:
 Donde ahora está el `match _archetype():`:
 
 ```gdscript
-var t := Art.tex("res://assets/sprites/demons/%s.png" % d.get("id", ""))
+var t := Art.tex("res://assets/sprites/demons/%s/idle.png" % d.get("id", ""))
 if t:
 	Art.draw_standing(self, t, Vector2(0, 24 * s), 150.0 * s)   # ajustar a ojo
 else:
