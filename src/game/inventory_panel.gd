@@ -97,6 +97,7 @@ func _rebuild() -> void:
 		card.add_theme_color_override("font_color", ThemeKit.TEXT)
 		card.add_theme_font_size_override("font_size", 12)
 		card.text = "%s\n%s\n%s" % [String(it["name"]), ("[EQUIPADO]" if eq else "[guardado]"), Items.describe(it)]
+		Art.set_button_icon(card, "items/%s.png" % String(it["id"]), 48)
 		card.pressed.connect(Game.toggle_item.bind(String(it["id"])))
 		_grid.add_child(card)
 

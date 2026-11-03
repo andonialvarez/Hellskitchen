@@ -84,6 +84,10 @@ static func flame_poly(c: Vector2, w: float, h: float) -> PackedVector2Array:
 
 
 static func draw_icon(ci: CanvasItem, kind: String, rect: Rect2) -> void:
+	var t := Art.icon(kind)
+	if t != null:
+		Art.draw_fit(ci, t, rect)
+		return
 	var c := rect.position + rect.size * 0.5
 	var u := minf(rect.size.x, rect.size.y)
 	match kind:

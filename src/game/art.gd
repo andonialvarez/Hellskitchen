@@ -57,3 +57,42 @@ static func cover_rect(t: Texture2D, area: Rect2) -> Rect2:
 	var k := maxf(area.size.x / float(t.get_width()), area.size.y / float(t.get_height()))
 	var sz := Vector2(t.get_width(), t.get_height()) * k
 	return Rect2(area.get_center() - sz * 0.5, sz)
+
+
+static func icon(kind: String) -> Texture2D:
+	return tex("icons/%s.png" % kind)
+
+
+## Cuadro con la imagen `rel` de `px` de lado, o null si falta el PNG.
+static func picture(rel: String, px: float, mod := Color.WHITE) -> TextureRect:
+	var t := tex(rel)
+	if t == null:
+		return null
+	var r := TextureRect.new()
+	r.texture = t
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.custom_minimum_size = Vector2(px, px)
+	r.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.modulate = mod
+	return r
+
+
+## Pone la imagen `rel` como icono del botón (si existe), de `px` de ancho.
+static func set_button_icon(b: Button, rel: String, px := 22) -> void:
+	var t := tex(rel)
+	if t == null:
+		return
+	b.icon = t
+	b.expand_icon = false
+	b.add_theme_constant_override("icon_max_width", px)
+
+
+## Fondo de pantalla `bg/<name>.png` cubriendo `area`. Devuelve false si falta.
+static func draw_bg(ci: CanvasItem, name: String, area: Rect2, mod := Color.WHITE) -> bool:
+	var t := tex("bg/%s.png" % name)
+	if t == null:
+		return false
+	ci.draw_texture_rect(t, cover_rect(t, area), false, mod)
+	return true

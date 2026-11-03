@@ -15,6 +15,16 @@ func _ready() -> void:
 	bg.color = ThemeKit.OBSIDIAN
 	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	var bgt := Art.tex("bg/menu.png")
+	if bgt != null:
+		var bgr := TextureRect.new()
+		bgr.texture = bgt
+		bgr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bgr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bgr.modulate = Color(0.8, 0.8, 0.8)
+		bgr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bgr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		add_child(bgr)
 
 	_embers = CPUParticles2D.new()
 	_embers.amount = 60

@@ -140,6 +140,7 @@ func _draw() -> void:
 	var s := size
 	var f := ThemeKit.font()
 	draw_rect(Rect2(0, 0, s.x, s.y), Color(0.05, 0.028, 0.033, 0.99))
+	Art.draw_bg(self, "slots", Rect2(Vector2.ZERO, s), Color(0.5, 0.5, 0.5))
 
 	# grieta de lava de fondo
 	var gx := s.x * 0.5
@@ -237,6 +238,9 @@ func _draw() -> void:
 	var stt := by + 76.0
 	if Game.slot_boon != "":
 		var bn := String(Slots.boon(Game.slot_boon).get("name", ""))
+		var bt := Art.tex("slots/boons/%s.png" % Game.slot_boon)
+		if bt != null:
+			Art.draw_fit(self, bt, Rect2(Vector2(_cab.position.x - 34.0, stt - 22.0), Vector2(28, 28)))
 		draw_string(f, Vector2(_cab.position.x, stt), "Bendición lista para tu próxima run:  " + bn + "   (pasa el ratón)",
 			HORIZONTAL_ALIGNMENT_LEFT, cw + 160, 13, ThemeKit.SULFUR)
 		_hot.append({"rect": Rect2(Vector2(_cab.position.x, stt - 14), Vector2(cw + 160, 20)),
@@ -345,6 +349,10 @@ func _draw_tooltip(text: String) -> void:
 
 # ---- dibujo de los símbolos ----
 func _draw_sym(sym: String, rect: Rect2) -> void:
+	var t := Art.tex("slots/%s.png" % sym)
+	if t != null:
+		Art.draw_fit(self, t, rect)
+		return
 	var c := rect.position + rect.size * 0.5
 	var u := minf(rect.size.x, rect.size.y)
 	match sym:
@@ -399,6 +407,10 @@ func _draw_sym(sym: String, rect: Rect2) -> void:
 
 
 func _draw_coin(pos: Vector2, r: float) -> void:
+	var t := Art.tex("slots/coin.png")
+	if t != null:
+		Art.draw_fit(self, t, Rect2(pos - Vector2(r, r) * 1.25, Vector2(r, r) * 2.5))
+		return
 	draw_circle(pos, r, ThemeKit.SULFUR)
 	draw_circle(pos, r, ThemeKit.SULFUR.darkened(0.3), false, 2.0)
 	var pts := PackedVector2Array()

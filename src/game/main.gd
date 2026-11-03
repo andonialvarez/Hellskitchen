@@ -176,25 +176,27 @@ func _build_btnbar() -> void:
 	_btnbar = HBoxContainer.new()
 	_btnbar.add_theme_constant_override("separation", 8)
 	add_child(_btnbar)
-	_mk_barbtn("Árbol", func() -> void: _open_only(_tree))
-	_mk_barbtn("Despensa", func() -> void: _open_only(_shop))
-	_mk_barbtn("Inventario", func() -> void: _open_only(_inv))
-	_mk_barbtn("Recompensas", func() -> void: _open_only(_rewards))
-	_mk_barbtn("Códice", func() -> void: _open_only(_codex))
-	_mk_barbtn("Tragaperras", func() -> void: _open_only(_slot))
-	var contra := _mk_barbtn("Contrato", func() -> void: Game.prestige())
+	_mk_barbtn("Árbol", "tree", func() -> void: _open_only(_tree))
+	_mk_barbtn("Despensa", "shop", func() -> void: _open_only(_shop))
+	_mk_barbtn("Inventario", "inventory", func() -> void: _open_only(_inv))
+	_mk_barbtn("Recompensas", "rewards", func() -> void: _open_only(_rewards))
+	_mk_barbtn("Códice", "codex", func() -> void: _open_only(_codex))
+	_mk_barbtn("Tragaperras", "slots", func() -> void: _open_only(_slot))
+	var contra := _mk_barbtn("Contrato", "contract", func() -> void: Game.prestige())
 	contra.name = "contra"
-	_mk_barbtn("Menú", func() -> void: get_tree().change_scene_to_file("res://src/game/menu.tscn"))
-	var mute := _mk_barbtn("Mudo" if Audio.muted else "Sonido", func() -> void: pass)
+	_mk_barbtn("Menú", "menu", func() -> void: get_tree().change_scene_to_file("res://src/game/menu.tscn"))
+	var mute := _mk_barbtn("Mudo" if Audio.muted else "Sonido", "sound_off" if Audio.muted else "sound_on", func() -> void: pass)
 	mute.name = "mute"
 	mute.pressed.connect(func() -> void:
 		Audio.set_muted(not Audio.muted)
-		mute.text = "Mudo" if Audio.muted else "Sonido")
+		mute.text = "Mudo" if Audio.muted else "Sonido"
+		Art.set_button_icon(mute, "icons/%s.png" % ("sound_off" if Audio.muted else "sound_on")))
 
 
-func _mk_barbtn(text: String, cb: Callable) -> Button:
+func _mk_barbtn(text: String, ic: String, cb: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
+	Art.set_button_icon(b, "icons/%s.png" % ic)
 	b.add_theme_font_size_override("font_size", 13)
 	ThemeKit.style_button(b, ThemeKit.CARD)
 	b.pressed.connect(cb)

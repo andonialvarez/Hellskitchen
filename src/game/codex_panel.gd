@@ -172,7 +172,17 @@ func _item_card(it: Dictionary, known: bool, is_decor := false) -> Control:
 	card.add_child(mc)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
-	mc.add_child(v)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var pic := Art.picture("%s/%s.png" % ["decor" if is_decor else "items", String(it.get("id", ""))], 44,
+		Color.WHITE if known else Color(0, 0, 0, 0.55))
+	if pic:
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 8)
+		hb.add_child(pic)
+		hb.add_child(v)
+		mc.add_child(hb)
+	else:
+		mc.add_child(v)
 	if known:
 		var col := Demons.color(String(it.get("rarity", "comun")))
 		v.add_child(_lbl(String(it["name"]), 13, col))

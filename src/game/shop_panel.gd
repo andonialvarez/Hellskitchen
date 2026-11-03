@@ -110,7 +110,16 @@ func _add_shop_card(u: Dictionary) -> void:
 	card.add_child(mc)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
-	mc.add_child(v)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var pic := Art.picture("shop/%s.png" % String(u["id"]), 52)
+	if pic:
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 8)
+		hb.add_child(pic)
+		hb.add_child(v)
+		mc.add_child(hb)
+	else:
+		mc.add_child(v)
 	v.add_child(_lbl(String(u["name"]), 13, ThemeKit.TEXT))
 	var dl := _lbl(String(u["desc"]), 11, ThemeKit.TEXT_DIM)
 	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
