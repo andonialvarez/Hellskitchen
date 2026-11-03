@@ -139,7 +139,8 @@ func _demon_card(d: Dictionary) -> Control:
 	var icon := _DemonIcon.new()
 	icon.known = known
 	icon.rarity = String(d.get("rarity", "comun"))
-	icon.custom_minimum_size = Vector2(48, 48)
+	icon.id = String(d.get("id", ""))
+	icon.custom_minimum_size = Vector2(56, 56)
 	var wrap := CenterContainer.new()
 	wrap.add_child(icon)
 	v.add_child(wrap)
@@ -210,9 +211,10 @@ func _lbl(t: String, sz: int, col: Color) -> Label:
 class _DemonIcon extends Control:
 	var known := false
 	var rarity := "comun"
+	var id := ""
 	func _draw() -> void:
 		var c := size * 0.5
 		if known:
-			DemonNode.draw_mini_head(self, c, size.x * 0.4, rarity)
+			DemonNode.draw_mini_head(self, c, size.x * 0.4, rarity, id)
 		else:
 			DemonNode.draw_silhouette(self, c, size.x * 0.4)
