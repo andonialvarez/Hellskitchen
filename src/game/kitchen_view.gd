@@ -52,6 +52,12 @@ func _ready() -> void:
 	_embers.scale_amount_min = 1.5
 	_embers.scale_amount_max = 4.0
 	_embers.color = ThemeKit.EMBER
+	var et := Art.tex("fx/flame.png")
+	if et != null:
+		_embers.texture = et
+		_embers.color = Color.WHITE
+		_embers.scale_amount_min = 0.08
+		_embers.scale_amount_max = 0.2
 	_embers.emitting = true
 	add_child(_embers)
 
@@ -190,18 +196,13 @@ func _draw() -> void:
 	var f := ThemeKit.font()
 	var bar_w := (kw - 60.0) * 0.5
 	var fb := Rect2(24, 18, bar_w, 18)
-	draw_rect(fb, Color("#0c0809"))
-	draw_rect(Rect2(fb.position, Vector2(fb.size.x * _fire_ratio, fb.size.y)),
-		ThemeKit.EMBER if _fire_ratio > 0.25 else ThemeKit.BLOOD_BRIGHT)
-	draw_rect(fb, ThemeKit.LINE, false, 1.5)
+	ThemeKit.draw_bar(self, fb, _fire_ratio, ThemeKit.EMBER if _fire_ratio > 0.25 else ThemeKit.BLOOD_BRIGHT)
 	draw_string(f, fb.position + Vector2(9, 13),
 		("FUEGO  " + Nums.time_fmt(Game.fire_left)) if Game.shift_active else "FUEGO APAGADO",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ThemeKit.OBSIDIAN)
 	var hb := Rect2(24 + bar_w + 12, 18, bar_w, 18)
 	var hr: float = clampf(Game.hp / maxf(1.0, Game.max_hp()), 0.0, 1.0)
-	draw_rect(hb, Color("#0c0809"))
-	draw_rect(Rect2(hb.position, Vector2(hb.size.x * hr, hb.size.y)), ThemeKit.HP)
-	draw_rect(hb, ThemeKit.LINE, false, 1.5)
+	ThemeKit.draw_bar(self, hb, hr, ThemeKit.HP)
 	draw_string(f, hb.position + Vector2(9, 13),
 		"VIDA  %s / %s" % [Nums.fmt(Game.hp), Nums.fmt(Game.max_hp())],
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ThemeKit.TEXT)
@@ -223,10 +224,8 @@ func _draw() -> void:
 	if Game.shift_active and not Game.current_demon.is_empty():
 		var bw := 280.0
 		var bx := Vector2(_win_c.x - bw * 0.5, _sill_y + 34.0)
-		draw_rect(Rect2(bx, Vector2(bw, 14)), Color("#0c0809"))
 		var rat: float = Game.demon_progress()
-		draw_rect(Rect2(bx, Vector2(bw * rat, 14)), Demons.color(Game.current_demon.get("rarity", "comun")))
-		draw_rect(Rect2(bx, Vector2(bw, 14)), ThemeKit.LINE, false, 1.5)
+		ThemeKit.draw_bar(self, Rect2(bx, Vector2(bw, 14)), rat, Demons.color(Game.current_demon.get("rarity", "comun")))
 		var pat: float = Game.patience_left()
 		var pcol := ThemeKit.SOUL if pat > 0.4 else ThemeKit.HP
 		draw_rect(Rect2(bx + Vector2(0, 18), Vector2(bw, 6)), Color("#0c0809"))

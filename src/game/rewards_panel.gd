@@ -91,7 +91,7 @@ func _add_row(index: int) -> void:
 	card.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	card.add_theme_stylebox_override("normal", ThemeKit.panel_style(ThemeKit.CARD, 10))
 	card.add_theme_stylebox_override("hover", ThemeKit.panel_style(ThemeKit.STONE_2, 10))
-	var db := ThemeKit.panel_style(Color(rc.r, rc.g, rc.b, 0.14), 10)
+	var db := ThemeKit.panel_style(Color(rc.r, rc.g, rc.b, 0.14), 10) as StyleBoxFlat
 	db.border_color = rc
 	db.set_border_width_all(1)
 	card.add_theme_stylebox_override("disabled", db)

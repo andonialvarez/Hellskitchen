@@ -28,6 +28,7 @@ var _dyn := 0.0
 
 
 func _ready() -> void:
+	Art.apply_cursor()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	_kitchen = KitchenView.new()
@@ -232,6 +233,7 @@ func _refresh_btnbar() -> void:
 # ==================================================================
 func _on_cook() -> void:
 	Game.cook_click()
+	Art.burst(_fx, "spark", _kitchen.pan_screen_pos() + Vector2(randf_range(-50, 50), randf_range(-30, 10)), 46.0, 20.0, 0.35)
 	Audio.play("sizzle", 0.16)
 
 
@@ -239,6 +241,8 @@ func _on_served(d: Dictionary) -> void:
 	var next := Game.current_demon
 	_kitchen.spawn_food_fly(FoodProps.random_kind())
 	_spawn_float("Tasty", _kitchen.demon_screen_pos(), Demons.color(d.get("rarity", "comun")))
+	for i in 3:
+		Art.burst(_fx, "soul", _kitchen.demon_screen_pos() + Vector2(-90 + i * 30, 30), 44.0, 90.0, 0.9)
 	var t := get_tree().create_timer(0.24)
 	t.timeout.connect(func() -> void:
 		_kitchen.demon_react()
@@ -248,6 +252,8 @@ func _on_served(d: Dictionary) -> void:
 func _on_dispatched(d: Dictionary) -> void:
 	_kitchen.dispatch_transition(Game.current_demon)
 	_spawn_float("¡despachado!", _kitchen.pan_screen_pos(), ThemeKit.ATK)
+	Art.burst(_fx, "hit", _kitchen.demon_screen_pos() + Vector2(-120, 40), 150.0, 0.0, 0.45)
+	Art.burst(_fx, "smoke", _kitchen.demon_screen_pos() + Vector2(-120, 60), 120.0, 40.0, 0.9)
 
 
 func _on_shift_started() -> void:

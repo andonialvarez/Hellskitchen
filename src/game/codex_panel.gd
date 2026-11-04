@@ -173,8 +173,8 @@ func _item_card(it: Dictionary, known: bool, is_decor := false) -> Control:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var pic := Art.picture("%s/%s.png" % ["decor" if is_decor else "items", String(it.get("id", ""))], 44,
-		Color.WHITE if known else Color(0, 0, 0, 0.55))
+	var pic := Art.framed("%s/%s.png" % ["decor" if is_decor else "items", String(it.get("id", ""))],
+		String(it.get("rarity", "comun")), 52, Color.WHITE if known else Color(0, 0, 0, 0.55))
 	if pic:
 		var hb := HBoxContainer.new()
 		hb.add_theme_constant_override("separation", 8)

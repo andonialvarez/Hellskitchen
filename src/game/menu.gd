@@ -10,6 +10,7 @@ var _continue_btn: Button
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	Art.apply_cursor()
 
 	var bg := ColorRect.new()
 	bg.color = ThemeKit.OBSIDIAN
@@ -37,6 +38,12 @@ func _ready() -> void:
 	_embers.scale_amount_min = 1.5
 	_embers.scale_amount_max = 4.0
 	_embers.color = ThemeKit.EMBER
+	var et := Art.tex("fx/ember.png")
+	if et != null:
+		_embers.texture = et
+		_embers.color = Color.WHITE
+		_embers.scale_amount_min = 0.06
+		_embers.scale_amount_max = 0.16
 	_embers.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	_embers.emitting = true
 	add_child(_embers)
@@ -51,9 +58,15 @@ func _ready() -> void:
 	center.add_theme_constant_override("separation", 14)
 	add_child(center)
 
-	var title := _lbl("HELL'S KITCHEN", 44, ThemeKit.BLOOD_BRIGHT)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(title)
+	var logo := Art.picture("ui/logo.png", 300)
+	if logo != null:
+		logo.custom_minimum_size = Vector2(450, 300)
+		logo.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		center.add_child(logo)
+	else:
+		var title := _lbl("HELL'S KITCHEN", 44, ThemeKit.BLOOD_BRIGHT)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		center.add_child(title)
 	var sub := _lbl("cocina para el infierno, sirve o despacha, firma tu contrato", 14, ThemeKit.TEXT_DIM)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	center.add_child(sub)

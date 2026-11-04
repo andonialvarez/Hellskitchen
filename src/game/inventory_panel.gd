@@ -90,7 +90,7 @@ func _rebuild() -> void:
 		var rc := Demons.color(String(it["rarity"]))
 		card.add_theme_stylebox_override("normal", ThemeKit.panel_style(ThemeKit.CARD, 10))
 		card.add_theme_stylebox_override("hover", ThemeKit.panel_style(ThemeKit.STONE_2, 10))
-		var eqbox := ThemeKit.panel_style(Color(rc.r, rc.g, rc.b, 0.22), 10)
+		var eqbox := ThemeKit.panel_style(Color(rc.r, rc.g, rc.b, 0.22), 10) as StyleBoxFlat
 		eqbox.border_color = rc
 		eqbox.set_border_width_all(2)
 		card.add_theme_stylebox_override("pressed", eqbox)

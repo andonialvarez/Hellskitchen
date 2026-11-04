@@ -240,6 +240,10 @@ func _rebuild_decor() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		_decor_box.add_child(row)
+		var dpic := Art.framed("decor/%s.png" % String(d["id"]), String(d["rarity"]), 40,
+			Color.WHITE if owned else Color(0.6, 0.55, 0.55))
+		if dpic != null:
+			row.add_child(dpic)
 		var nm := _lbl("%s  (+%.1f ★)" % [String(d["name"]), float(d["stars"])], 12,
 			Demons.color(String(d["rarity"])) if owned else ThemeKit.TEXT_DIM)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL

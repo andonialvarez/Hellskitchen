@@ -96,3 +96,48 @@ static func draw_bg(ci: CanvasItem, name: String, area: Rect2, mod := Color.WHIT
 		return false
 	ci.draw_texture_rect(t, cover_rect(t, area), false, mod)
 	return true
+
+
+## Imagen con el marco de su rareza encima (ui/frame_<rareza>.png), `px` de lado.
+static func framed(rel: String, rarity: String, px: float, mod := Color.WHITE) -> Control:
+	var pic := picture(rel, px * 0.72, mod)
+	if pic == null:
+		return null
+	var box := Control.new()
+	box.custom_minimum_size = Vector2(px, px)
+	box.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pic.position = Vector2(px, px) * 0.14
+	pic.size = Vector2(px, px) * 0.72
+	box.add_child(pic)
+	var fr := picture("ui/frame_%s.png" % rarity, px)
+	if fr != null:
+		fr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		box.add_child(fr)
+	return box
+
+
+## Cursor del ratón con el tridente (la punta está arriba a la izquierda).
+static func apply_cursor() -> void:
+	var t := tex("ui/cursor.png")
+	if t != null:
+		Input.set_custom_mouse_cursor(t, Input.CURSOR_ARROW, Vector2(3, 1))
+		Input.set_custom_mouse_cursor(t, Input.CURSOR_POINTING_HAND, Vector2(3, 1))
+
+
+## Efecto suelto (fx/<name>.png) sobre `parent`: crece, sube y se desvanece.
+static func burst(parent: Node, name: String, pos: Vector2, px: float, rise := 0.0, dur := 0.5) -> void:
+	var t := tex("fx/%s.png" % name)
+	if t == null:
+		return
+	var s := Sprite2D.new()
+	s.texture = t
+	s.position = pos
+	s.scale = Vector2.ONE * (px / float(t.get_width())) * 0.5
+	s.rotation = randf_range(-0.4, 0.4)
+	parent.add_child(s)
+	var tw := s.create_tween().set_parallel(true)
+	tw.tween_property(s, "scale", Vector2.ONE * (px / float(t.get_width())), dur * 0.4)
+	tw.tween_property(s, "position:y", pos.y - rise, dur)
+	tw.tween_property(s, "modulate:a", 0.0, dur).set_delay(dur * 0.35)
+	tw.chain().tween_callback(s.queue_free)

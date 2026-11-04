@@ -129,7 +129,7 @@ SPECS = {
     "ui/bar_frame.png": lambda im: scale_w(im, 768),
     "ui/bar_fill.png": lambda im: scale_w(im, 768),
     "ui/logo.png": lambda im: fit(im, 1200, 800, 0.0),
-    "ui/cursor.png": lambda im: fit(im, 64, 64, 0.0),
+    "ui/cursor.png": lambda im: fit(im, 40, 40, 0.0),
     "slots/machine.png": lambda im: fit(im, 720, 960, 0.0),
     "slots/lever.png": lambda im: fit(im, 160, 480, 0.0, anchor_bottom=True),
     "tree/hearth.png": lambda im: fit(im, 256, 256, 0.02),
@@ -170,3 +170,11 @@ for f in sorted(glob.glob(SRC + "/**/*.png", recursive=True)):
         continue
     done += 1
 print("piezas sueltas:", done)
+
+# --- versiones pequeñas de los marcos 9-slice (Godot pinta las esquinas a su tamaño real) ---
+SLICE = {"panel": (128, 128), "card": (64, 64), "button": (96, 50), "button_primary": (96, 52),
+         "bar_frame": (140, 24), "bar_fill": (140, 12)}
+for name, (w, h) in SLICE.items():
+    f = os.path.join(DST, "ui", name + ".png")
+    if os.path.exists(f):
+        save(Image.open(f).convert("RGBA").resize((w, h), Image.LANCZOS), f"ui/slice/{name}.png")
