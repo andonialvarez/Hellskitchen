@@ -85,6 +85,7 @@ func _unhandled_input(e: InputEvent) -> void:
 func _draw() -> void:
 	var s := size
 	draw_rect(Rect2(0, 0, s.x, s.y), Color(0.05, 0.03, 0.035, 0.985))
+	Art.draw_bg(self, "tree", Rect2(Vector2.ZERO, s), Color(0.55, 0.55, 0.55))
 	_center = Vector2(s.x * 0.5, s.y * 0.55)
 	var f := ThemeKit.font()
 	draw_string(f, Vector2(28, 40), "Árbol de habilidades", HORIZONTAL_ALIGNMENT_LEFT, -1, 24, ThemeKit.TEXT)
@@ -106,12 +107,18 @@ func _draw() -> void:
 		draw_line(a, _npos(nd), col if owned else dim, 3.5 if owned else 2.0)
 
 	# hub
-	draw_circle(_center + _pan, 24.0 * _zoom, ThemeKit.CARD)
-	draw_arc(_center + _pan, 24.0 * _zoom, 0, TAU, 28, ThemeKit.EMBER, 3.0)
-	draw_string(f, _center + _pan + Vector2(-16, 5), "FOGÓN", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ThemeKit.EMBER)
+	var hearth := Art.tex("tree/hearth.png")
+	if hearth != null:
+		Art.draw_fit(self, hearth, Rect2(_center + _pan - Vector2(44, 44) * _zoom, Vector2(88, 88) * _zoom))
+	else:
+		_draw_hub_procedural(f)
 
 	# nodos
+	var node_t := Art.tex("tree/node.png")
 	for nd in SkillTree.all():
+		if node_t != null:
+			_draw_node_tex(nd, node_t)
+			continue
 		var col := Color(BRANCH_COL.get(nd["branch"], "#ffffff"))
 		var p := _npos(nd)
 		var st := Game.node_state(nd["id"])
@@ -150,6 +157,39 @@ func _draw() -> void:
 		draw_string(f, box.position + Vector2(14, 46), String(nd["desc"]), HORIZONTAL_ALIGNMENT_LEFT, box.size.x - 28, 12, ThemeKit.TEXT_DIM)
 		draw_string(f, box.position + Vector2(14, 76), "Coste: %s almas   ·   %s" % [Nums.fmt(Game.tree_node_cost(_hover)), stxt],
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ThemeKit.EMBER)
+
+
+func _draw_hub_procedural(f: Font) -> void:
+	draw_circle(_center + _pan, 24.0 * _zoom, ThemeKit.CARD)
+	draw_arc(_center + _pan, 24.0 * _zoom, 0, TAU, 28, ThemeKit.EMBER, 3.0)
+	draw_string(f, _center + _pan + Vector2(-16, 5), "FOGÓN", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ThemeKit.EMBER)
+
+
+## Nodo con la imagen del medallón, teñido según su estado; las raíces
+## llevan además el icono de su rama.
+func _draw_node_tex(nd: Dictionary, t: Texture2D) -> void:
+	var col := Color(BRANCH_COL.get(nd["branch"], "#ffffff"))
+	var p := _npos(nd)
+	var st := Game.node_state(nd["id"])
+	var r := 16.0 * _zoom
+	var mod := Color(0.35, 0.3, 0.32)
+	match st:
+		"owned":
+			mod = col.lightened(0.35)
+		"afford":
+			var pulse := 0.5 + 0.5 * sin(_t * 4.0)
+			draw_circle(p, r + 5.0 * pulse * _zoom, Color(col.r, col.g, col.b, 0.3))
+			mod = Color(0.85, 0.8, 0.8)
+		"avail":
+			mod = Color(0.6, 0.55, 0.56)
+		_:
+			r *= 0.75
+	Art.draw_fit(self, t, Rect2(p - Vector2(r, r) * 1.25, Vector2(r, r) * 2.5), mod)
+	if String(nd["id"]).ends_with("_r"):
+		var bt := Art.tex("tree/branches/%s.png" % String(nd["branch"]))
+		if bt != null:
+			Art.draw_fit(self, bt, Rect2(p - Vector2(r, r) * 0.95, Vector2(r, r) * 1.9),
+				Color.WHITE if st == "owned" else Color(0.7, 0.7, 0.7))
 
 
 ## Círculo de fuego que rodea el pentagrama de nodos (la forma la hacen las

@@ -77,7 +77,7 @@ var demon_queue := []         ## próximos demonios (cola visible)
 var cook_progress := 0.0
 var demon_wait := 0.0
 var served_tally := {}       ## demon_id -> count
-var demons_fed_run := []     ## rarezas servidas este turno (para el recuento lateral)
+var demons_fed_run := []     ## ids servidos este turno (para el recuento lateral)
 var dispatched := 0
 var shift_souls := 0.0       ## almas ganadas al despachar durante el turno
 var _dmg_t := 0.0
@@ -315,7 +315,7 @@ func _add_cook(amount: float) -> void:
 func _tally(demon: Dictionary) -> void:
 	var id: String = demon["id"]
 	served_tally[id] = int(served_tally.get(id, 0)) + 1
-	demons_fed_run.append(String(demon["rarity"]))
+	demons_fed_run.append(id)
 	stats["served"] += 1.0
 
 

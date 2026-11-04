@@ -33,7 +33,39 @@ static func font() -> Font:
 	return ThemeDB.fallback_font
 
 
-static func panel_style(col: Color, radius := 12) -> StyleBoxFlat:
+## Marco dibujado (ui/slice/<name>.png) estirado en 9 trozos, o null si falta.
+static func skin(name: String, margin: float, pad: float, mod := Color.WHITE) -> StyleBoxTexture:
+	var t := Art.tex("ui/slice/%s.png" % name)
+	if t == null:
+		return null
+	var sb := StyleBoxTexture.new()
+	sb.texture = t
+	sb.texture_margin_left = margin
+	sb.texture_margin_right = margin
+	sb.texture_margin_top = margin
+	sb.texture_margin_bottom = margin
+	sb.content_margin_left = pad
+	sb.content_margin_right = pad
+	sb.content_margin_top = pad
+	sb.content_margin_bottom = pad
+	sb.modulate_color = mod
+	return sb
+
+
+## Paneles y tarjetas: con imagen para los colores de piedra; los demás
+## (los tintes de rareza translúcidos) siguen siendo planos.
+static func panel_style(col: Color, radius := 12) -> StyleBox:
+	var sk: StyleBox = null
+	if col == PANEL or (col == STONE_2 and radius >= 12):
+		sk = skin("panel", 22.0, 18.0)
+	elif col == CARD:
+		sk = skin("card", 10.0, 8.0)
+	elif col == STONE_2:
+		sk = skin("card", 10.0, 8.0, Color(1.25, 1.2, 1.2))
+	elif col == STONE:
+		sk = skin("card", 10.0, 8.0, Color(0.7, 0.68, 0.7))
+	if sk != null:
+		return sk
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = col
 	sb.set_corner_radius_all(radius)
@@ -54,10 +86,31 @@ static func button_style(col: Color) -> StyleBoxFlat:
 
 
 static func style_button(b: Button, col := BLOOD) -> void:
-	b.add_theme_stylebox_override("normal", button_style(col))
-	b.add_theme_stylebox_override("hover", button_style(col.lightened(0.12)))
-	b.add_theme_stylebox_override("pressed", button_style(col.darkened(0.2)))
-	b.add_theme_stylebox_override("disabled", button_style(Color("#2a2226")))
+	var primary := col == BLOOD or col == BLOOD_BRIGHT
+	var name := "button_primary" if primary else "button"
+	var tint := Color.WHITE if (primary or col == CARD) else Color.WHITE.lerp(col.lightened(0.45), 0.55)
+	var sk := skin(name, 13.0, 0.0, tint)
+	if sk != null:
+		for st in [["normal", 1.0], ["hover", 1.25], ["pressed", 0.8]]:
+			var k: float = st[1]
+			var bx := skin(name, 13.0, 0.0, Color(tint.r * k, tint.g * k, tint.b * k))
+			bx.content_margin_left = 16
+			bx.content_margin_right = 16
+			bx.content_margin_top = 8
+			bx.content_margin_bottom = 8
+			b.add_theme_stylebox_override(String(st[0]), bx)
+		var dis := skin("button", 13.0, 0.0, Color(0.5, 0.48, 0.5))
+		dis.content_margin_left = 16
+		dis.content_margin_right = 16
+		dis.content_margin_top = 8
+		dis.content_margin_bottom = 8
+		b.add_theme_stylebox_override("disabled", dis)
+		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	else:
+		b.add_theme_stylebox_override("normal", button_style(col))
+		b.add_theme_stylebox_override("hover", button_style(col.lightened(0.12)))
+		b.add_theme_stylebox_override("pressed", button_style(col.darkened(0.2)))
+		b.add_theme_stylebox_override("disabled", button_style(Color("#2a2226")))
 	b.add_theme_color_override("font_color", TEXT)
 	b.add_theme_color_override("font_disabled_color", TEXT_DIM.darkened(0.25))
 	b.add_theme_font_size_override("font_size", 14)
@@ -84,6 +137,10 @@ static func flame_poly(c: Vector2, w: float, h: float) -> PackedVector2Array:
 
 
 static func draw_icon(ci: CanvasItem, kind: String, rect: Rect2) -> void:
+	var t := Art.icon(kind)
+	if t != null:
+		Art.draw_fit(ci, t, rect)
+		return
 	var c := rect.position + rect.size * 0.5
 	var u := minf(rect.size.x, rect.size.y)
 	match kind:
@@ -159,3 +216,26 @@ static func draw_icon(ci: CanvasItem, kind: String, rect: Rect2) -> void:
 			ci.draw_circle(c + Vector2(-u * 0.1, -u * 0.1), u * 0.1, Color(1, 1, 1, 0.5))
 		_:
 			ci.draw_circle(c, u * 0.35, TEXT_DIM)
+
+
+static var _bar_frame: StyleBoxTexture = null
+
+
+## Barra de progreso: fondo oscuro, relleno teñido de `col` y marco de hierro.
+## Sin las imágenes de ui/slice/ se pinta plana como antes.
+static func draw_bar(ci: CanvasItem, rect: Rect2, ratio: float, col: Color) -> void:
+	ratio = clampf(ratio, 0.0, 1.0)
+	ci.draw_rect(rect, Color("#0c0809"))
+	var fill := Art.tex("ui/slice/bar_fill.png")
+	if fill != null:
+		ci.draw_texture_rect(fill, Rect2(rect.position, Vector2(rect.size.x * ratio, rect.size.y)), false, col.lightened(0.15))
+	else:
+		ci.draw_rect(Rect2(rect.position, Vector2(rect.size.x * ratio, rect.size.y)), col)
+	if _bar_frame == null:
+		_bar_frame = skin("bar_frame", 10.0, 0.0)
+	if _bar_frame != null and rect.size.y >= 10.0:
+		_bar_frame.texture_margin_top = minf(10.0, rect.size.y * 0.5)
+		_bar_frame.texture_margin_bottom = minf(10.0, rect.size.y * 0.5)
+		ci.draw_style_box(_bar_frame, rect.grow(3.0))
+	else:
+		ci.draw_rect(rect, LINE, false, 1.5)

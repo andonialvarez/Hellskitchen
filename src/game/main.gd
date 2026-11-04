@@ -28,6 +28,7 @@ var _dyn := 0.0
 
 
 func _ready() -> void:
+	Art.apply_cursor()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 	_kitchen = KitchenView.new()
@@ -176,25 +177,27 @@ func _build_btnbar() -> void:
 	_btnbar = HBoxContainer.new()
 	_btnbar.add_theme_constant_override("separation", 8)
 	add_child(_btnbar)
-	_mk_barbtn("Árbol", func() -> void: _open_only(_tree))
-	_mk_barbtn("Despensa", func() -> void: _open_only(_shop))
-	_mk_barbtn("Inventario", func() -> void: _open_only(_inv))
-	_mk_barbtn("Recompensas", func() -> void: _open_only(_rewards))
-	_mk_barbtn("Códice", func() -> void: _open_only(_codex))
-	_mk_barbtn("Tragaperras", func() -> void: _open_only(_slot))
-	var contra := _mk_barbtn("Contrato", func() -> void: Game.prestige())
+	_mk_barbtn("Árbol", "tree", func() -> void: _open_only(_tree))
+	_mk_barbtn("Despensa", "shop", func() -> void: _open_only(_shop))
+	_mk_barbtn("Inventario", "inventory", func() -> void: _open_only(_inv))
+	_mk_barbtn("Recompensas", "rewards", func() -> void: _open_only(_rewards))
+	_mk_barbtn("Códice", "codex", func() -> void: _open_only(_codex))
+	_mk_barbtn("Tragaperras", "slots", func() -> void: _open_only(_slot))
+	var contra := _mk_barbtn("Contrato", "contract", func() -> void: Game.prestige())
 	contra.name = "contra"
-	_mk_barbtn("Menú", func() -> void: get_tree().change_scene_to_file("res://src/game/menu.tscn"))
-	var mute := _mk_barbtn("Mudo" if Audio.muted else "Sonido", func() -> void: pass)
+	_mk_barbtn("Menú", "menu", func() -> void: get_tree().change_scene_to_file("res://src/game/menu.tscn"))
+	var mute := _mk_barbtn("Mudo" if Audio.muted else "Sonido", "sound_off" if Audio.muted else "sound_on", func() -> void: pass)
 	mute.name = "mute"
 	mute.pressed.connect(func() -> void:
 		Audio.set_muted(not Audio.muted)
-		mute.text = "Mudo" if Audio.muted else "Sonido")
+		mute.text = "Mudo" if Audio.muted else "Sonido"
+		Art.set_button_icon(mute, "icons/%s.png" % ("sound_off" if Audio.muted else "sound_on")))
 
 
-func _mk_barbtn(text: String, cb: Callable) -> Button:
+func _mk_barbtn(text: String, ic: String, cb: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
+	Art.set_button_icon(b, "icons/%s.png" % ic)
 	b.add_theme_font_size_override("font_size", 13)
 	ThemeKit.style_button(b, ThemeKit.CARD)
 	b.pressed.connect(cb)
@@ -230,6 +233,7 @@ func _refresh_btnbar() -> void:
 # ==================================================================
 func _on_cook() -> void:
 	Game.cook_click()
+	Art.burst(_fx, "spark", _kitchen.pan_screen_pos() + Vector2(randf_range(-50, 50), randf_range(-30, 10)), 46.0, 20.0, 0.35)
 	Audio.play("sizzle", 0.16)
 
 
@@ -237,6 +241,8 @@ func _on_served(d: Dictionary) -> void:
 	var next := Game.current_demon
 	_kitchen.spawn_food_fly(FoodProps.random_kind())
 	_spawn_float("Tasty", _kitchen.demon_screen_pos(), Demons.color(d.get("rarity", "comun")))
+	for i in 3:
+		Art.burst(_fx, "soul", _kitchen.demon_screen_pos() + Vector2(-90 + i * 30, 30), 44.0, 90.0, 0.9)
 	var t := get_tree().create_timer(0.24)
 	t.timeout.connect(func() -> void:
 		_kitchen.demon_react()
@@ -246,6 +252,8 @@ func _on_served(d: Dictionary) -> void:
 func _on_dispatched(d: Dictionary) -> void:
 	_kitchen.dispatch_transition(Game.current_demon)
 	_spawn_float("¡despachado!", _kitchen.pan_screen_pos(), ThemeKit.ATK)
+	Art.burst(_fx, "hit", _kitchen.demon_screen_pos() + Vector2(-120, 40), 150.0, 0.0, 0.45)
+	Art.burst(_fx, "smoke", _kitchen.demon_screen_pos() + Vector2(-120, 60), 120.0, 40.0, 0.9)
 
 
 func _on_shift_started() -> void:

@@ -15,6 +15,15 @@ var _fire_ratio := 0.0
 var _pan_c := Vector2.ZERO
 var _pan_r := 92.0
 var _win_c := Vector2.ZERO
+var _win_r := Vector2(150, 120)    ## medio ancho / medio alto del pasaplatos
+var _sill_y := 0.0                 ## repisa del pasaplatos: ahí pisa el demonio
+
+## Hueco del pasaplatos dentro de kitchen/wall.png, en fracción de la imagen.
+const WALL_HATCH := Rect2(0.25, 0.15, 0.51, 0.36)
+const WALL_SILL := 0.515
+## Centro y ancho del cazo dentro de kitchen/pan.png (512x512, mango a la derecha).
+const PAN_BOWL := Vector2(176, 272)
+const PAN_BOWL_W := 340.0
 
 var _food_slots: Array = []
 var _food_reroll_t := 0.0
@@ -43,6 +52,12 @@ func _ready() -> void:
 	_embers.scale_amount_min = 1.5
 	_embers.scale_amount_max = 4.0
 	_embers.color = ThemeKit.EMBER
+	var et := Art.tex("fx/flame.png")
+	if et != null:
+		_embers.texture = et
+		_embers.color = Color.WHITE
+		_embers.scale_amount_min = 0.08
+		_embers.scale_amount_max = 0.2
 	_embers.emitting = true
 	add_child(_embers)
 
@@ -95,9 +110,18 @@ func _relayout() -> void:
 	var s := size
 	var kw := s.x
 	_win_c = Vector2(kw * 0.5, s.y * 0.40)
+	_win_r = Vector2(150, 120)
+	_sill_y = _win_c.y + _win_r.y - 8.0
+	var wall := Art.tex("kitchen/wall.png")
+	if wall:
+		var wr := Art.cover_rect(wall, Rect2(Vector2.ZERO, s))
+		var hatch := Rect2(wr.position + wr.size * WALL_HATCH.position, wr.size * WALL_HATCH.size)
+		_win_c = hatch.get_center()
+		_win_r = hatch.size * 0.5
+		_sill_y = wr.position.y + wr.size.y * WALL_SILL
 	_pan_c = Vector2(kw * 0.5, s.y * 0.80)
 	_pan_r = clampf(s.y * 0.13, 70.0, 110.0)
-	_demon.set_home(_win_c + Vector2(0, 6))
+	_demon.set_home(Vector2(_win_c.x, _sill_y) if Art.tex("demons/diablillo/idle.png") else _win_c + Vector2(0, 6))
 	_embers.position = _pan_c + Vector2(0, 10)
 	_embers.emission_rect_extents = Vector2(_pan_r * 0.7, 6)
 	_embers.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
@@ -160,32 +184,146 @@ func _draw() -> void:
 	var kw := s.x
 
 	draw_rect(Rect2(0, 0, s.x, s.y), ThemeKit.OBSIDIAN)
-	for i in 9:
-		var y := s.y * (0.06 + 0.1 * float(i))
-		draw_line(Vector2(0, y), Vector2(kw, y + sin(float(i)) * 12.0), ThemeKit.OBSIDIAN_2, 3.0)
+	var wall := Art.tex("kitchen/wall.png")
+	if wall:
+		draw_texture_rect(wall, Art.cover_rect(wall, Rect2(Vector2.ZERO, s)), false)
+	else:
+		for i in 9:
+			var y := s.y * (0.06 + 0.1 * float(i))
+			draw_line(Vector2(0, y), Vector2(kw, y + sin(float(i)) * 12.0), ThemeKit.OBSIDIAN_2, 3.0)
 
 	# medidores: fuego y vida
 	var f := ThemeKit.font()
 	var bar_w := (kw - 60.0) * 0.5
 	var fb := Rect2(24, 18, bar_w, 18)
-	draw_rect(fb, Color("#0c0809"))
-	draw_rect(Rect2(fb.position, Vector2(fb.size.x * _fire_ratio, fb.size.y)),
-		ThemeKit.EMBER if _fire_ratio > 0.25 else ThemeKit.BLOOD_BRIGHT)
-	draw_rect(fb, ThemeKit.LINE, false, 1.5)
+	ThemeKit.draw_bar(self, fb, _fire_ratio, ThemeKit.EMBER if _fire_ratio > 0.25 else ThemeKit.BLOOD_BRIGHT)
 	draw_string(f, fb.position + Vector2(9, 13),
 		("FUEGO  " + Nums.time_fmt(Game.fire_left)) if Game.shift_active else "FUEGO APAGADO",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ThemeKit.OBSIDIAN)
 	var hb := Rect2(24 + bar_w + 12, 18, bar_w, 18)
 	var hr: float = clampf(Game.hp / maxf(1.0, Game.max_hp()), 0.0, 1.0)
-	draw_rect(hb, Color("#0c0809"))
-	draw_rect(Rect2(hb.position, Vector2(hb.size.x * hr, hb.size.y)), ThemeKit.HP)
-	draw_rect(hb, ThemeKit.LINE, false, 1.5)
+	ThemeKit.draw_bar(self, hb, hr, ThemeKit.HP)
 	draw_string(f, hb.position + Vector2(9, 13),
 		"VIDA  %s / %s" % [Nums.fmt(Game.hp), Nums.fmt(Game.max_hp())],
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, ThemeKit.TEXT)
 
-	# grieta de lava tras la ventana
 	var glow: float = 0.28 + 0.72 * _fire_ratio + 0.06 * sin(_t * 4.0)
+	var win := Rect2(_win_c - _win_r, _win_r * 2.0)
+	if wall:
+		# el pasaplatos ya viene en el dibujo: solo el brillo del fuego dentro
+		draw_rect(win, Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.04 + 0.07 * glow))
+		_draw_served_columns(s)
+	else:
+		_draw_wall_procedural(s, kw, glow, win)
+
+	# cola de los siguientes demonios
+	_draw_queue(s, win)
+
+
+	# barras del demonio actual (cocción + paciencia)
+	if Game.shift_active and not Game.current_demon.is_empty():
+		var bw := 280.0
+		var bx := Vector2(_win_c.x - bw * 0.5, _sill_y + 34.0)
+		var rat: float = Game.demon_progress()
+		ThemeKit.draw_bar(self, Rect2(bx, Vector2(bw, 14)), rat, Demons.color(Game.current_demon.get("rarity", "comun")))
+		var pat: float = Game.patience_left()
+		var pcol := ThemeKit.SOUL if pat > 0.4 else ThemeKit.HP
+		draw_rect(Rect2(bx + Vector2(0, 18), Vector2(bw, 6)), Color("#0c0809"))
+		draw_rect(Rect2(bx + Vector2(0, 18), Vector2(bw * pat, 6)), pcol)
+		if pat <= 0.0:
+			draw_string(f, bx + Vector2(0, 46), "¡SE HA CANSADO DE ESPERAR!", HORIZONTAL_ALIGNMENT_LEFT, bw, 13, ThemeKit.HP)
+	elif not Game.shift_active:
+		var msg := "Enciende el fuego para empezar el turno"
+		var mw := f.get_string_size(msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+		draw_string(f, _pan_c + Vector2(-mw * 0.5, -_pan_r - 26), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ThemeKit.TEXT_DIM)
+
+	# encimera + fumarola + sartén
+	var ctop := s.y * 0.64
+	draw_rect(Rect2(0, ctop, kw, s.y - ctop), ThemeKit.OBSIDIAN_2)
+	var counter := Art.tex("kitchen/counter.png")
+	if counter:
+		var ch := kw * float(counter.get_height()) / float(counter.get_width())
+		draw_texture_rect(counter, Rect2(0, ctop - ch * 0.12, kw, ch), false)
+	else:
+		draw_line(Vector2(0, ctop), Vector2(kw, ctop), Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.18), 3.0)
+	# pentagrama grabado en la encimera bajo la sartén
+	draw_set_transform(_pan_c + Vector2(0, 16), _t * 0.05, Vector2(1, 0.42))
+	var pent := Art.tex("kitchen/pentagram.png")
+	if pent:
+		var pr2 := _pan_r * 1.75
+		draw_texture_rect(pent, Rect2(-pr2, -pr2, pr2 * 2.0, pr2 * 2.0), false, Color(1, 1, 1, 0.35 + 0.45 * _fire_ratio))
+	else:
+		var pentcol := Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.10 + 0.06 * _fire_ratio)
+		draw_arc(Vector2.ZERO, _pan_r * 1.7, 0, TAU, 40, pentcol, 2.0)
+		var pp := PackedVector2Array()
+		for i in 5:
+			pp.append(Vector2(cos(-PI / 2 + i * TAU * 2.0 / 5.0), sin(-PI / 2 + i * TAU * 2.0 / 5.0)) * _pan_r * 1.6)
+		for i in 5:
+			draw_line(pp[i], pp[(i + 1) % 5], pentcol, 2.0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	draw_set_transform(_pan_c + Vector2(0, 14), 0.0, Vector2(1, 0.4))
+	draw_circle(Vector2.ZERO, _pan_r * 1.35, Color("#241013"))
+	draw_circle(Vector2.ZERO, _pan_r * 0.9, Color(ThemeKit.LAVA.r, ThemeKit.LAVA.g, ThemeKit.LAVA.b, 0.5 + 0.3 * _fire_ratio))
+	draw_circle(Vector2.ZERO, _pan_r * 0.55, Color(ThemeKit.EMBER_HOT.r, ThemeKit.EMBER_HOT.g, ThemeKit.EMBER_HOT.b, 0.5 * _fire_ratio))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var pr := _pan_r * (1.0 - 0.06 * _punch)
+	var food_pos := [Vector2(-pr * 0.32, -pr * 0.05), Vector2(pr * 0.30, -pr * 0.15), Vector2(0.02 * pr, pr * 0.35)]
+	var pan := Art.tex("kitchen/pan.png")
+	if pan:
+		# el dibujo trae el mango a la derecha: PAN_BOWL es el centro del cazo en la imagen
+		var k := pr * 2.1 / PAN_BOWL_W
+		var origin := _pan_c - PAN_BOWL * k
+		draw_texture_rect(pan, Rect2(origin, Vector2(pan.get_width(), pan.get_height()) * k), false)
+		for i in 5:
+			var ea := _t * 0.7 + float(i) * TAU / 5.0
+			draw_circle(_pan_c + Vector2(cos(ea), sin(ea) * 0.8) * pr * 0.45, 3.0, Color(ThemeKit.EMBER_HOT.r, ThemeKit.EMBER_HOT.g, ThemeKit.EMBER_HOT.b, 0.5 * _fire_ratio))
+		for i in _food_slots.size():
+			var fs: Dictionary = _food_slots[i]
+			var seed_v: float = fs["seed"]
+			var jitter := Vector2(sin(_t * 6.0 + seed_v) * 2.0, cos(_t * 5.0 + seed_v) * 1.5)
+			var fp: Vector2 = food_pos[i] * Vector2(1.0, 1.3)
+			FoodProps.draw(self, _pan_c + fp + jitter, String(fs["kind"]), 0.9 + 0.05 * sin(_t * 3.0 + seed_v), _t + seed_v)
+	else:
+		draw_line(_pan_c + Vector2(pr * 0.75, -6), _pan_c + Vector2(pr * 1.9, -pr * 0.5), Color("#3c343a"), 16.0)
+		draw_line(_pan_c + Vector2(pr * 0.75, -8), _pan_c + Vector2(pr * 1.9, -pr * 0.5 - 2), Color("#5a4f56"), 8.0)
+		draw_set_transform(_pan_c, 0.0, Vector2(1, 0.6))
+		draw_circle(Vector2.ZERO, pr, Color("#241c1f"))
+		draw_circle(Vector2.ZERO, pr * 0.92, Color("#140f12"))
+		draw_circle(Vector2.ZERO, pr * 0.86, Color("#0c090b"))
+		draw_circle(Vector2(-pr * 0.28, -pr * 0.22), pr * 0.3, Color(1, 1, 1, 0.03))
+		# unas ascuas dentro de la sartén
+		for i in 5:
+			var ea := _t * 0.7 + float(i) * TAU / 5.0
+			draw_circle(Vector2(cos(ea), sin(ea)) * pr * 0.4, 3.0, Color(ThemeKit.EMBER_HOT.r, ThemeKit.EMBER_HOT.g, ThemeKit.EMBER_HOT.b, 0.5 * _fire_ratio))
+
+		# comida que se va cocinando (para que la sartén no se vea vacía)
+		for i in _food_slots.size():
+			var fs: Dictionary = _food_slots[i]
+			var seed_v: float = fs["seed"]
+			var jitter := Vector2(sin(_t * 6.0 + seed_v) * 2.0, cos(_t * 5.0 + seed_v) * 1.5)
+			FoodProps.draw(self, food_pos[i] + jitter, String(fs["kind"]), 0.8 + 0.05 * sin(_t * 3.0 + seed_v), _t + seed_v)
+
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	_draw_cooks(s)
+
+	# comida volando de la sartén a la boca del demonio
+	for fly in _food_fly:
+		var rat: float = clampf(fly["t"] / fly["dur"], 0.0, 1.0)
+		var pos: Vector2 = fly["from"].lerp(fly["to"], rat)
+		pos.y -= sin(rat * PI) * 46.0
+		FoodProps.draw(self, pos, String(fly["kind"]), 0.55, _t)
+
+	draw_rect(Rect2(0, s.y - 22, s.x, 22), Color("#0a0709"))
+
+	# destello rojo al recibir daño
+	if _flash > 0.0:
+		draw_rect(Rect2(0, 0, s.x, s.y), Color(ThemeKit.HP.r, ThemeKit.HP.g, ThemeKit.HP.b, 0.25 * _flash))
+
+
+## Pared, grieta de lava y pasaplatos de hueso dibujados por código (sin kitchen/wall.png).
+func _draw_wall_procedural(s: Vector2, kw: float, glow: float, win: Rect2) -> void:
 	var gx := kw * 0.5
 	var pts := PackedVector2Array()
 	for i in 11:
@@ -208,8 +346,6 @@ func _draw() -> void:
 	_draw_served_columns(s)
 
 	# ventana de servicio (arco de hueso)
-	var wr := Vector2(150, 120)
-	var win := Rect2(_win_c - wr, wr * 2.0)
 	draw_rect(win.grow(14), Color("#0b0709"))
 	ThemeKit.fill_round_rect(self, win.grow(10), 20, ThemeKit.BONE_DIM)
 	draw_rect(win, Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.05 + 0.08 * glow))
@@ -218,86 +354,6 @@ func _draw() -> void:
 		draw_circle(Vector2(ax, win.position.y - 6), 7, ThemeKit.BONE)
 	_skull(Vector2(win.position.x - 40, win.end.y - 10), 22)
 	_skull(Vector2(win.end.x + 40, win.end.y - 10), 22)
-
-	# cola de los siguientes demonios
-	_draw_queue(s, win)
-
-	# barras del demonio actual (cocción + paciencia)
-	if Game.shift_active and not Game.current_demon.is_empty():
-		var bw := 280.0
-		var bx := _win_c + Vector2(-bw * 0.5, 150)
-		draw_rect(Rect2(bx, Vector2(bw, 14)), Color("#0c0809"))
-		var rat: float = Game.demon_progress()
-		draw_rect(Rect2(bx, Vector2(bw * rat, 14)), Demons.color(Game.current_demon.get("rarity", "comun")))
-		draw_rect(Rect2(bx, Vector2(bw, 14)), ThemeKit.LINE, false, 1.5)
-		var pat: float = Game.patience_left()
-		var pcol := ThemeKit.SOUL if pat > 0.4 else ThemeKit.HP
-		draw_rect(Rect2(bx + Vector2(0, 18), Vector2(bw, 6)), Color("#0c0809"))
-		draw_rect(Rect2(bx + Vector2(0, 18), Vector2(bw * pat, 6)), pcol)
-		if pat <= 0.0:
-			draw_string(f, bx + Vector2(0, 46), "¡SE HA CANSADO DE ESPERAR!", HORIZONTAL_ALIGNMENT_LEFT, bw, 13, ThemeKit.HP)
-	elif not Game.shift_active:
-		var msg := "Enciende el fuego para empezar el turno"
-		var mw := f.get_string_size(msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
-		draw_string(f, _pan_c + Vector2(-mw * 0.5, -_pan_r - 26), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, ThemeKit.TEXT_DIM)
-
-	# encimera + fumarola + sartén
-	var ctop := s.y * 0.64
-	draw_rect(Rect2(0, ctop, kw, s.y - ctop), ThemeKit.OBSIDIAN_2)
-	draw_line(Vector2(0, ctop), Vector2(kw, ctop), Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.18), 3.0)
-	# pentagrama grabado en la encimera bajo la sartén
-	draw_set_transform(_pan_c + Vector2(0, 16), _t * 0.05, Vector2(1, 0.42))
-	var pentcol := Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.10 + 0.06 * _fire_ratio)
-	draw_arc(Vector2.ZERO, _pan_r * 1.7, 0, TAU, 40, pentcol, 2.0)
-	var pp := PackedVector2Array()
-	for i in 5:
-		pp.append(Vector2(cos(-PI / 2 + i * TAU * 2.0 / 5.0), sin(-PI / 2 + i * TAU * 2.0 / 5.0)) * _pan_r * 1.6)
-	for i in 5:
-		draw_line(pp[i], pp[(i + 1) % 5], pentcol, 2.0)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-	draw_set_transform(_pan_c + Vector2(0, 14), 0.0, Vector2(1, 0.4))
-	draw_circle(Vector2.ZERO, _pan_r * 1.35, Color("#241013"))
-	draw_circle(Vector2.ZERO, _pan_r * 0.9, Color(ThemeKit.LAVA.r, ThemeKit.LAVA.g, ThemeKit.LAVA.b, 0.5 + 0.3 * _fire_ratio))
-	draw_circle(Vector2.ZERO, _pan_r * 0.55, Color(ThemeKit.EMBER_HOT.r, ThemeKit.EMBER_HOT.g, ThemeKit.EMBER_HOT.b, 0.5 * _fire_ratio))
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	var pr := _pan_r * (1.0 - 0.06 * _punch)
-	draw_line(_pan_c + Vector2(pr * 0.75, -6), _pan_c + Vector2(pr * 1.9, -pr * 0.5), Color("#3c343a"), 16.0)
-	draw_line(_pan_c + Vector2(pr * 0.75, -8), _pan_c + Vector2(pr * 1.9, -pr * 0.5 - 2), Color("#5a4f56"), 8.0)
-	draw_set_transform(_pan_c, 0.0, Vector2(1, 0.6))
-	draw_circle(Vector2.ZERO, pr, Color("#241c1f"))
-	draw_circle(Vector2.ZERO, pr * 0.92, Color("#140f12"))
-	draw_circle(Vector2.ZERO, pr * 0.86, Color("#0c090b"))
-	draw_circle(Vector2(-pr * 0.28, -pr * 0.22), pr * 0.3, Color(1, 1, 1, 0.03))
-	# unas ascuas dentro de la sartén
-	for i in 5:
-		var ea := _t * 0.7 + float(i) * TAU / 5.0
-		draw_circle(Vector2(cos(ea), sin(ea)) * pr * 0.4, 3.0, Color(ThemeKit.EMBER_HOT.r, ThemeKit.EMBER_HOT.g, ThemeKit.EMBER_HOT.b, 0.5 * _fire_ratio))
-
-	# comida que se va cocinando (para que la sartén no se vea vacía)
-	var food_pos := [Vector2(-pr * 0.32, -pr * 0.05), Vector2(pr * 0.30, -pr * 0.15), Vector2(0.02 * pr, pr * 0.35)]
-	for i in _food_slots.size():
-		var fs: Dictionary = _food_slots[i]
-		var seed_v: float = fs["seed"]
-		var jitter := Vector2(sin(_t * 6.0 + seed_v) * 2.0, cos(_t * 5.0 + seed_v) * 1.5)
-		FoodProps.draw(self, food_pos[i] + jitter, String(fs["kind"]), 0.8 + 0.05 * sin(_t * 3.0 + seed_v), _t + seed_v)
-
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-	_draw_cooks(s)
-
-	# comida volando de la sartén a la boca del demonio
-	for fly in _food_fly:
-		var rat: float = clampf(fly["t"] / fly["dur"], 0.0, 1.0)
-		var pos: Vector2 = fly["from"].lerp(fly["to"], rat)
-		pos.y -= sin(rat * PI) * 46.0
-		FoodProps.draw(self, pos, String(fly["kind"]), 0.55, _t)
-
-	draw_rect(Rect2(0, s.y - 22, s.x, 22), Color("#0a0709"))
-
-	# destello rojo al recibir daño
-	if _flash > 0.0:
-		draw_rect(Rect2(0, 0, s.x, s.y), Color(ThemeKit.HP.r, ThemeKit.HP.g, ThemeKit.HP.b, 0.25 * _flash))
 
 
 ## Columnas laterales: una cadena de fondo y, colgando de ella, las
@@ -311,7 +367,16 @@ func _draw_served_columns(s: Vector2) -> void:
 	var lx := 26.0
 	var rx := s.x - 26.0
 	# cadena de fondo
+	var chain := Art.tex("kitchen/chain.png")
 	for cx in [lx, rx]:
+		if chain:
+			var cw := 16.0
+			var chh := cw * float(chain.get_height()) / float(chain.get_width())
+			var yy2 := top - 20.0
+			while yy2 < bot + 10.0:
+				draw_texture_rect(chain, Rect2(cx - cw * 0.5, yy2, cw, chh), false, Color(0.75, 0.7, 0.72))
+				yy2 += chh - 2.0
+			continue
 		var yy := top
 		while yy < bot + 10.0:
 			draw_arc(Vector2(cx, yy + sin(_t * 1.3 + yy * 0.05) * 1.2), 6.0, 0, TAU, 10, Color("#332b30"), 3.0)
@@ -324,7 +389,8 @@ func _draw_served_columns(s: Vector2) -> void:
 		var idx := lc if left else rc
 		if idx < cap:
 			var pos := Vector2(lx if left else rx, top + float(idx) * step + 6.0)
-			DemonNode.draw_mini_head(self, pos, 9.5, String(fed[i]))
+			var fid := String(fed[i])
+			DemonNode.draw_mini_head(self, pos, 9.5, String(Demons.by_id(fid).get("rarity", "comun")), fid)
 		if left: lc += 1
 		else: rc += 1
 	if fed.size() > 0:
@@ -348,7 +414,7 @@ func _draw_queue(s: Vector2, win: Rect2) -> void:
 	draw_string(f, Vector2(x0 - 78.0, y + 4.0), "Cola →", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, ThemeKit.TEXT_DIM)
 	for i in n:
 		var r := 12.0 if i == 0 else 9.0
-		DemonNode.draw_mini_head(self, Vector2(x0 + float(i) * gap, y), r, String(q[i].get("rarity", "comun")))
+		DemonNode.draw_mini_head(self, Vector2(x0 + float(i) * gap, y), r, String(q[i].get("rarity", "comun")), String(q[i].get("id", "")))
 
 
 ## Cocineros contratados, junto a la sartén. Crecen y cambian de aspecto

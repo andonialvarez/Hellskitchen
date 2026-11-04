@@ -110,7 +110,16 @@ func _add_shop_card(u: Dictionary) -> void:
 	card.add_child(mc)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
-	mc.add_child(v)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var pic := Art.picture("shop/%s.png" % String(u["id"]), 52)
+	if pic:
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 8)
+		hb.add_child(pic)
+		hb.add_child(v)
+		mc.add_child(hb)
+	else:
+		mc.add_child(v)
 	v.add_child(_lbl(String(u["name"]), 13, ThemeKit.TEXT))
 	var dl := _lbl(String(u["desc"]), 11, ThemeKit.TEXT_DIM)
 	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -231,6 +240,10 @@ func _rebuild_decor() -> void:
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 8)
 		_decor_box.add_child(row)
+		var dpic := Art.framed("decor/%s.png" % String(d["id"]), String(d["rarity"]), 40,
+			Color.WHITE if owned else Color(0.6, 0.55, 0.55))
+		if dpic != null:
+			row.add_child(dpic)
 		var nm := _lbl("%s  (+%.1f ★)" % [String(d["name"]), float(d["stars"])], 12,
 			Demons.color(String(d["rarity"])) if owned else ThemeKit.TEXT_DIM)
 		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL

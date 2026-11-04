@@ -11,6 +11,11 @@ static func random_kind() -> String:
 
 
 static func draw(ci: CanvasItem, pos: Vector2, kind: String, s: float, t: float) -> void:
+	var tex := Art.food(kind)
+	if tex:
+		var side := 56.0 * s
+		Art.draw_fit(ci, tex, Rect2(pos - Vector2(side, side) * 0.5, Vector2(side, side)))
+		return
 	match kind:
 		"costilla": _costilla(ci, pos, s)
 		"ojo": _ojo(ci, pos, s)

@@ -12,6 +12,11 @@ var _angry := 0.0
 var _home := Vector2.ZERO
 var _transitioning := false
 var _crowned := false
+var _pose := "idle"          ## idle · eat · hit (angry se decide sola con la paciencia)
+
+## Alto en px del dibujo del demonio: base + extra por cada rango.
+const SPRITE_H := 150.0
+const SPRITE_H_TIER := 5.0
 
 
 func set_home(p: Vector2) -> void:
@@ -20,8 +25,14 @@ func set_home(p: Vector2) -> void:
 
 
 ## Cabecita para el recuento lateral / cola de demonios.
-static func draw_mini_head(ci: CanvasItem, pos: Vector2, r: float, rarity: String) -> void:
+static func draw_mini_head(ci: CanvasItem, pos: Vector2, r: float, rarity: String, id := "") -> void:
 	var col := Demons.color(rarity)
+	var t: Texture2D = Art.demon_head(id) if id != "" else null
+	if t:
+		ci.draw_circle(pos, r * 1.08, col.darkened(0.55))
+		Art.draw_fit(ci, t, Rect2(pos - Vector2(r, r) * 1.25, Vector2(r, r) * 2.5))
+		ci.draw_arc(pos, r * 1.08, 0, TAU, 20, col, maxf(1.5, r * 0.14))
+		return
 	ci.draw_circle(pos, r, col.darkened(0.25))
 	ci.draw_line(pos + Vector2(-r * 0.4, -r * 0.5), pos + Vector2(-r * 0.85, -r * 1.2), col.darkened(0.45), 2.0)
 	ci.draw_line(pos + Vector2(r * 0.4, -r * 0.5), pos + Vector2(r * 0.85, -r * 1.2), col.darkened(0.45), 2.0)
@@ -31,6 +42,10 @@ static func draw_mini_head(ci: CanvasItem, pos: Vector2, r: float, rarity: Strin
 
 ## Silueta gris plana para el Códice: se ve la forma pero no qué es.
 static func draw_silhouette(ci: CanvasItem, pos: Vector2, r: float) -> void:
+	var t := Art.tex("demons/_unknown.png")
+	if t:
+		Art.draw_fit(ci, t, Rect2(pos - Vector2(r, r) * 1.25, Vector2(r, r) * 2.5))
+		return
 	var col := Color(0.20, 0.18, 0.19)
 	ci.draw_circle(pos, r, col)
 	ci.draw_line(pos + Vector2(-r * 0.4, -r * 0.5), pos + Vector2(-r * 0.85, -r * 1.2), col, 3.0)
@@ -48,6 +63,10 @@ static func draw_cook(ci: CanvasItem, pos: Vector2, size: float, tier: int, t: f
 	ci.draw_set_transform(p + Vector2(0, s * 0.5), 0.0, Vector2(1, 0.35))
 	ci.draw_circle(Vector2.ZERO, s * 0.5, ThemeKit.SHADOW)
 	ci.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var tex := Art.cook(did, "cook" if Game.shift_active else "idle")
+	if tex:
+		Art.draw_standing(ci, tex, p + Vector2(0, s * 0.55), s * 2.4)
+		return
 	ci.draw_colored_polygon(PackedVector2Array([
 		p + Vector2(-s * 0.32, s * 0.42), p + Vector2(s * 0.32, s * 0.42),
 		p + Vector2(s * 0.22, -s * 0.28), p + Vector2(-s * 0.22, -s * 0.28)]), col)
@@ -68,6 +87,7 @@ func set_demon(demon: Dictionary) -> void:
 			break
 	_col = Demons.color(demon.get("rarity", "comun"))
 	_crowned = bool(demon.get("crowned", false))
+	_pose = "idle"
 	queue_redraw()
 	enter_from_left()
 
@@ -89,6 +109,7 @@ func enter_from_left() -> void:
 ## Al ser alimentado: se desliza hacia la derecha y desaparece.
 func exit_right(cb: Callable) -> void:
 	_transitioning = true
+	_pose = "eat"
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(self, "position", _home + Vector2(460, -14), 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -99,6 +120,7 @@ func exit_right(cb: Callable) -> void:
 ## Al ser despachado: sale disparado girando hacia una esquina de la sala.
 func exit_corner(corner: Vector2, cb: Callable) -> void:
 	_transitioning = true
+	_pose = "hit"
 	var tw := create_tween()
 	tw.set_parallel(true)
 	tw.tween_property(self, "position", corner, 0.38).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
@@ -132,6 +154,13 @@ func _draw() -> void:
 	var sz := 0.72 + float(_tier) * 0.07     # crece con el rango
 	var s := sz * breathe
 	var rarity: String = d.get("rarity", "comun")
+	var pose := _pose
+	if pose == "idle" and _angry >= 0.99:
+		pose = "angry"
+	var tex := Art.demon(String(d.get("id", "")), pose)
+	if tex:
+		_draw_sprite(tex, (SPRITE_H + SPRITE_H_TIER * float(_tier)) * breathe, rarity)
+		return
 
 	# aura para épico y superior
 	if rarity in ["epico", "legendario", "mitico", "infernal"]:
@@ -169,6 +198,37 @@ func _draw() -> void:
 	var nm := String(d.get("name", ""))
 	var tw := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
 	draw_string(f, Vector2(-tw * 0.5, 34 * s + 20), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, _col)
+
+
+## Versión con dibujo: los pies del demonio están en el origen del nodo.
+func _draw_sprite(tex: Texture2D, h: float, rarity: String) -> void:
+	var mid := Vector2(0, -h * 0.5)
+	if rarity in ["epico", "legendario", "mitico", "infernal"]:
+		var pulse := 0.5 + 0.5 * sin(_t * 3.0)
+		for i in 3:
+			var rr := h * (0.52 + i * 0.1)
+			var a := (0.10 - i * 0.03) * (0.6 + 0.4 * pulse)
+			draw_circle(mid, rr, Color(_col.r, _col.g, _col.b, a))
+	if _crowned:
+		var gp := 0.5 + 0.5 * sin(_t * 4.0)
+		for i in 3:
+			var rr := h * (0.48 + i * 0.11)
+			draw_circle(mid, rr, Color(ThemeKit.SULFUR.r, ThemeKit.SULFUR.g, ThemeKit.SULFUR.b, (0.12 - i * 0.035) * (0.5 + 0.5 * gp)))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1, 0.3))
+	draw_circle(Vector2.ZERO, h * 0.36, ThemeKit.SHADOW)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	Art.draw_standing(self, tex, Vector2.ZERO, h)
+	if _crowned:
+		var crown := Art.tex("demons/_crown.png")
+		var cw := h * 0.34
+		if crown:
+			Art.draw_fit(self, crown, Rect2(Vector2(-cw * 0.5, -h - cw * 0.55 + sin(_t * 2.5) * 3.0), Vector2(cw, cw)))
+		else:
+			_draw_crown(Vector2(0, -h - 6.0), h / 150.0)
+	var f := ThemeKit.font()
+	var nm := String(d.get("name", ""))
+	var tw := f.get_string_size(nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 15).x
+	draw_string(f, Vector2(-tw * 0.5, 22), nm, HORIZONTAL_ALIGNMENT_LEFT, -1, 15, _col)
 
 
 func _archetype() -> String:

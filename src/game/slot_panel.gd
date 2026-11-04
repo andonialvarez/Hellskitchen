@@ -140,6 +140,7 @@ func _draw() -> void:
 	var s := size
 	var f := ThemeKit.font()
 	draw_rect(Rect2(0, 0, s.x, s.y), Color(0.05, 0.028, 0.033, 0.99))
+	Art.draw_bg(self, "slots", Rect2(Vector2.ZERO, s), Color(0.5, 0.5, 0.5))
 
 	# grieta de lava de fondo
 	var gx := s.x * 0.5
@@ -165,12 +166,29 @@ func _draw() -> void:
 	var cw := minf(560.0, s.x - 120.0)
 	var ch := 330.0
 	_cab = Rect2(Vector2(s.x * 0.5 - cw * 0.5 - 30.0, s.y * 0.5 - ch * 0.5), Vector2(cw, ch))
-	draw_rect(_cab.grow(10), Color("#0b0709"))
-	ThemeKit.fill_round_rect(self, _cab, 18, ThemeKit.STONE_2)
-	draw_rect(_cab, Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.12 + 0.06 * sin(_t * 3.0)), false, 2.0)
-	# frontón
-	draw_string(f, _cab.position + Vector2(0, -18), "★  PACTO DE LA FORTUNA  ★",
-		HORIZONTAL_ALIGNMENT_CENTER, cw, 15, ThemeKit.EMBER_HOT)
+	var machine := Art.tex("slots/machine.png")
+	var mrect := Rect2()
+	var reels: Array[Rect2] = []
+	if machine != null:
+		# la imagen de la máquina trae las 3 ventanas: los rodillos van debajo
+		var mh := clampf(s.y - 200.0, 300.0, 560.0)
+		var mk := mh / float(machine.get_height())
+		var mw := float(machine.get_width()) * mk
+		mrect = Rect2(Vector2(s.x * 0.5 - mw * 0.5 - 30.0, 128.0), Vector2(mw, mh))
+		for w in MACHINE_WINDOWS:
+			var wr: Rect2 = w
+			reels.append(Rect2(mrect.position + wr.position * mk, wr.size * mk))
+		cw = mw
+		# el cartel del resultado cae sobre el telón de abajo de la máquina
+		_cab = Rect2(mrect.position + Vector2(0, mh * 0.1), Vector2(mw, mh * 0.65))
+		ch = _cab.size.y
+	else:
+		draw_rect(_cab.grow(10), Color("#0b0709"))
+		ThemeKit.fill_round_rect(self, _cab, 18, ThemeKit.STONE_2)
+		draw_rect(_cab, Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.12 + 0.06 * sin(_t * 3.0)), false, 2.0)
+		# frontón
+		draw_string(f, _cab.position + Vector2(0, -18), "★  PACTO DE LA FORTUNA  ★",
+			HORIZONTAL_ALIGNMENT_CENTER, cw, 15, ThemeKit.EMBER_HOT)
 
 	# ---- 3 rodillos, cada uno mostrando símbolo anterior / centro / siguiente ----
 	_hot.clear()
@@ -182,8 +200,14 @@ func _draw() -> void:
 	var total := rn * rw + (rn - 1) * gap
 	var x0 := _cab.position.x + (cw - total) * 0.5
 	var ry := _cab.position.y + 44.0
+	if reels.is_empty():
+		for i in rn:
+			reels.append(Rect2(Vector2(x0 + i * (rw + gap), ry), Vector2(rw, rh)))
 	for i in rn:
-		var rr := Rect2(Vector2(x0 + i * (rw + gap), ry), Vector2(rw, rh))
+		var rr: Rect2 = reels[i]
+		rw = rr.size.x
+		rh = rr.size.y
+		cell = rh / 3.0
 		draw_rect(rr.grow(4), Color("#050304"))
 		ThemeKit.fill_round_rect(self, rr, 10, Color("#141013"))
 		var pos: float = float(_reel_pos[i])
@@ -191,7 +215,8 @@ func _draw() -> void:
 		var basei := int(floor(pos))
 		for k in range(basei - 1, basei + 2):
 			var y := cy + (float(k) - pos) * cell
-			var srect := Rect2(rr.position.x + 12.0, y - cell * 0.5 + 6.0, rw - 24.0, cell - 12.0)
+			var pad := minf(12.0, rw * 0.08)
+			var srect := Rect2(rr.position.x + pad, y - cell * 0.5 + pad * 0.5, rw - pad * 2.0, cell - pad)
 			_draw_sym(_strip_sym(k), srect)
 		# sombras arriba/abajo: dejan brillante sólo la fila del centro
 		draw_rect(Rect2(rr.position, Vector2(rw, cell)), Color(0.02, 0.01, 0.015, 0.62))
@@ -204,22 +229,33 @@ func _draw() -> void:
 		draw_rect(rr, Color("#141013"), false, 8.0)
 		ThemeKit.fill_round_rect(self, Rect2(rr.position - Vector2(3, 3), Vector2(rw + 6, 3)), 0, Color("#050304"))
 		draw_rect(rr.grow(-1), Color(ThemeKit.EMBER.r, ThemeKit.EMBER.g, ThemeKit.EMBER.b, 0.25), false, 2.0)
+	if machine != null:
+		draw_texture_rect(machine, mrect, false)
 
 	# ---- palanca (a la derecha del gabinete) ----
 	var lx := _cab.end.x + 40.0
 	var lbase := Vector2(lx, _cab.position.y + ch * 0.62)
 	var pull := _lever
-	var knob := lbase + Vector2(0, -84.0 + pull * 46.0)
-	draw_circle(lbase, 14.0, ThemeKit.STONE_2)
-	draw_circle(lbase, 14.0, ThemeKit.LINE, false, 2.0)
-	draw_line(lbase, knob, Color("#5a4f56"), 9.0)
-	draw_line(lbase, knob, Color("#3c343a"), 5.0)
-	draw_circle(knob, 16.0, ThemeKit.BLOOD_BRIGHT)
-	draw_circle(knob, 16.0, ThemeKit.EMBER_HOT, false, 2.0)
-	draw_circle(knob + Vector2(-5, -5), 4.0, Color(1, 1, 1, 0.35))
+	var lever := Art.tex("slots/lever.png")
+	if lever != null:
+		# la palanca se encoge hacia su base al tirar
+		var lh := 150.0
+		var lw := lh * float(lever.get_width()) / float(lever.get_height())
+		draw_set_transform(lbase + Vector2(0, 40), 0.0, Vector2(1.0, 1.0 - pull * 0.5))
+		draw_texture_rect(lever, Rect2(-lw * 0.5, -lh, lw, lh), false)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		var knob := lbase + Vector2(0, -84.0 + pull * 46.0)
+		draw_circle(lbase, 14.0, ThemeKit.STONE_2)
+		draw_circle(lbase, 14.0, ThemeKit.LINE, false, 2.0)
+		draw_line(lbase, knob, Color("#5a4f56"), 9.0)
+		draw_line(lbase, knob, Color("#3c343a"), 5.0)
+		draw_circle(knob, 16.0, ThemeKit.BLOOD_BRIGHT)
+		draw_circle(knob, 16.0, ThemeKit.EMBER_HOT, false, 2.0)
+		draw_circle(knob + Vector2(-5, -5), 4.0, Color(1, 1, 1, 0.35))
 	_lever_rect = Rect2(lx - 30.0, lbase.y - 110.0, 60.0, 150.0)
 	var hint := "TIRA" if Game.slot_can_pull() and not _spinning else ("GIRANDO…" if _spinning else "sin monedas")
-	draw_string(f, Vector2(lx - 34.0, lbase.y + 40.0), hint, HORIZONTAL_ALIGNMENT_LEFT, 90, 12, ThemeKit.TEXT_DIM)
+	draw_string(f, Vector2(lx - 34.0, lbase.y + 58.0), hint, HORIZONTAL_ALIGNMENT_LEFT, 90, 12, ThemeKit.TEXT_DIM)
 
 	# ---- banner de resultado ----
 	var by := _cab.end.y + 26.0
@@ -237,6 +273,9 @@ func _draw() -> void:
 	var stt := by + 76.0
 	if Game.slot_boon != "":
 		var bn := String(Slots.boon(Game.slot_boon).get("name", ""))
+		var bt := Art.tex("slots/boons/%s.png" % Game.slot_boon)
+		if bt != null:
+			Art.draw_fit(self, bt, Rect2(Vector2(_cab.position.x - 34.0, stt - 22.0), Vector2(28, 28)))
 		draw_string(f, Vector2(_cab.position.x, stt), "Bendición lista para tu próxima run:  " + bn + "   (pasa el ratón)",
 			HORIZONTAL_ALIGNMENT_LEFT, cw + 160, 13, ThemeKit.SULFUR)
 		_hot.append({"rect": Rect2(Vector2(_cab.position.x, stt - 14), Vector2(cw + 160, 20)),
@@ -343,8 +382,16 @@ func _draw_tooltip(text: String) -> void:
 		draw_string(f, p + Vector2(10, 14 + i * lh), String(lines[i]), HORIZONTAL_ALIGNMENT_LEFT, bw - 20, 12, ThemeKit.TEXT)
 
 
+## Ventanas vacías de slots/machine.png (en píxeles de la imagen de 720x960).
+const MACHINE_WINDOWS := [Rect2(123, 399, 130, 236), Rect2(294, 399, 131, 236), Rect2(466, 399, 130, 236)]
+
+
 # ---- dibujo de los símbolos ----
 func _draw_sym(sym: String, rect: Rect2) -> void:
+	var t := Art.tex("slots/%s.png" % sym)
+	if t != null:
+		Art.draw_fit(self, t, rect)
+		return
 	var c := rect.position + rect.size * 0.5
 	var u := minf(rect.size.x, rect.size.y)
 	match sym:
@@ -399,6 +446,10 @@ func _draw_sym(sym: String, rect: Rect2) -> void:
 
 
 func _draw_coin(pos: Vector2, r: float) -> void:
+	var t := Art.tex("slots/coin.png")
+	if t != null:
+		Art.draw_fit(self, t, Rect2(pos - Vector2(r, r) * 1.25, Vector2(r, r) * 2.5))
+		return
 	draw_circle(pos, r, ThemeKit.SULFUR)
 	draw_circle(pos, r, ThemeKit.SULFUR.darkened(0.3), false, 2.0)
 	var pts := PackedVector2Array()

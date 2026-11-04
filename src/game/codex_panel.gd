@@ -139,7 +139,8 @@ func _demon_card(d: Dictionary) -> Control:
 	var icon := _DemonIcon.new()
 	icon.known = known
 	icon.rarity = String(d.get("rarity", "comun"))
-	icon.custom_minimum_size = Vector2(48, 48)
+	icon.id = String(d.get("id", ""))
+	icon.custom_minimum_size = Vector2(56, 56)
 	var wrap := CenterContainer.new()
 	wrap.add_child(icon)
 	v.add_child(wrap)
@@ -171,7 +172,17 @@ func _item_card(it: Dictionary, known: bool, is_decor := false) -> Control:
 	card.add_child(mc)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 2)
-	mc.add_child(v)
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var pic := Art.framed("%s/%s.png" % ["decor" if is_decor else "items", String(it.get("id", ""))],
+		String(it.get("rarity", "comun")), 52, Color.WHITE if known else Color(0, 0, 0, 0.55))
+	if pic:
+		var hb := HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 8)
+		hb.add_child(pic)
+		hb.add_child(v)
+		mc.add_child(hb)
+	else:
+		mc.add_child(v)
 	if known:
 		var col := Demons.color(String(it.get("rarity", "comun")))
 		v.add_child(_lbl(String(it["name"]), 13, col))
@@ -210,9 +221,10 @@ func _lbl(t: String, sz: int, col: Color) -> Label:
 class _DemonIcon extends Control:
 	var known := false
 	var rarity := "comun"
+	var id := ""
 	func _draw() -> void:
 		var c := size * 0.5
 		if known:
-			DemonNode.draw_mini_head(self, c, size.x * 0.4, rarity)
+			DemonNode.draw_mini_head(self, c, size.x * 0.4, rarity, id)
 		else:
 			DemonNode.draw_silhouette(self, c, size.x * 0.4)
