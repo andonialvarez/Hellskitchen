@@ -22,6 +22,7 @@ signal reward_opened(index: int, loot: Dictionary)
 signal pact_signed(gain: int)
 signal toast(text: String)
 signal slot_pulled(result: Dictionary)
+signal story_unlocked(pages: Array)   ## páginas nuevas de la novela gráfica
 
 const SAVE_PATH := "user://save.json"
 const SAVE_VERSION := 2
@@ -63,6 +64,7 @@ var discovered_demons := {}  ## demon_id -> true (para el bestiario)
 var slot_coins := SLOT_START_COINS   ## monedas para la Tragaperras del Infierno
 var slot_boon := ""          ## bendición pendiente para la PRÓXIMA run
 var slot_cursed := false     ## la PRÓXIMA tirada saldrá maldita (nada)
+var story_seen := {}         ## página de la novela (int) -> true
 var stats := {
 	"shifts": 0.0, "served": 0.0, "dispatched": 0.0, "clicks": 0.0,
 	"best_shift": 0.0, "deaths": 0.0, "pacts_signed": 0.0, "items_found": 0.0,
@@ -236,6 +238,8 @@ func end_shift(reason: String) -> void:
 	_active_boon = ""
 	_recalc()
 	shift_ended.emit(reason, served, dispatched)
+	if reason != "contrato":
+		story_unlock([11])
 	changed.emit()
 	save_game()
 
@@ -260,6 +264,8 @@ func _spawn_demon() -> void:
 	current_demon["crowned"] = randf() < CROWN_CHANCE
 	_refill_queue()
 	discovered_demons[String(current_demon.get("id", ""))] = true
+	if String(current_demon.get("id", "")) == "lucifer":
+		story_unlock([17])
 	cook_progress = 0.0
 	demon_wait = 0.0
 	_dmg_t = 0.0
@@ -336,6 +342,7 @@ func dispatch() -> void:
 	stats["dispatched"] += 1.0
 	_spawn_demon()
 	demon_dispatched.emit(d)
+	story_unlock([10])
 	changed.emit()
 
 
@@ -347,6 +354,7 @@ func _take_damage() -> void:
 	var taken := float(current_demon["dmg"]) * (100.0 / (100.0 + armor)) * (1.0 - impatient_reduce())
 	hp = maxf(0.0, hp - taken)
 	damaged.emit(taken, dtype)
+	story_unlock([9])
 
 
 # ==================================================================
@@ -515,6 +523,7 @@ func buy_cook() -> void:
 	souls -= cook_buy_cost()
 	cooks.append(0)
 	_recalc()
+	story_unlock([13])
 	changed.emit()
 	save_game()
 
@@ -557,6 +566,37 @@ func buy_decor(id: String) -> void:
 	toast.emit("Decoración: " + str(Decor.by_id(id)["name"]) + "  (+%.1f ★)" % float(Decor.by_id(id)["stars"]))
 	changed.emit()
 	save_game()
+
+
+# ==================================================================
+#  NOVELA GRÁFICA
+# ==================================================================
+## Marca como vistas las páginas que aún no lo estén y avisa (main.gd abre
+## el visor). Devuelve las páginas nuevas.
+func story_unlock(pages: Array) -> Array:
+	var fresh := []
+	for n in pages:
+		if not story_seen.has(int(n)):
+			story_seen[int(n)] = true
+			fresh.append(int(n))
+	if not fresh.is_empty():
+		story_unlocked.emit(fresh)
+		save_game()
+	return fresh
+
+
+## Momentos que dependen de cuánto has avanzado (estrellas y contratos).
+func story_check_progress() -> void:
+	var pages := []
+	var st := stars()
+	for n in Story.STAR_PAGES:
+		if st >= float(Story.STAR_PAGES[n]):
+			pages.append(n)
+	if can_prestige() or pacts > 0:
+		pages.append(15)
+	if stats["pacts_signed"] >= Story.PACTS_FOR_16:
+		pages.append(16)
+	story_unlock(pages)
 
 
 # ==================================================================
@@ -684,6 +724,7 @@ func save_game() -> void:
 		"slot_coins": slot_coins,
 		"slot_boon": slot_boon,
 		"slot_cursed": slot_cursed,
+		"story_seen": story_seen.keys(),
 		"stats": stats.duplicate(),
 	}
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -725,6 +766,8 @@ func load_game() -> void:
 	slot_coins = int(d.get("slot_coins", SLOT_START_COINS))
 	slot_boon = String(d.get("slot_boon", ""))
 	slot_cursed = bool(d.get("slot_cursed", false))
+	for n in d.get("story_seen", []):
+		story_seen[int(n)] = true
 	var s: Dictionary = d.get("stats", {})
 	for k in stats:
 		if s.has(k):
@@ -755,6 +798,7 @@ func _reset_everything() -> void:
 	slot_coins = SLOT_START_COINS
 	slot_boon = ""
 	slot_cursed = false
+	story_seen.clear()
 	_active_boon = ""
 	for k in stats:
 		stats[k] = 0.0

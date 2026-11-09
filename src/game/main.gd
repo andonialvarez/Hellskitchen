@@ -19,6 +19,7 @@ var _rewards: RewardsPanel
 var _shop: ShopPanel
 var _codex: CodexPanel
 var _slot: SlotPanel
+var _comic: ComicViewer
 
 var lbl_souls: Label
 var lbl_pacts: Label
@@ -73,6 +74,7 @@ func _ready() -> void:
 	_shop = ShopPanel.new(); add_child(_shop)
 	_codex = CodexPanel.new(); add_child(_codex)
 	_slot = SlotPanel.new(); add_child(_slot)
+	_comic = ComicViewer.new(); add_child(_comic)
 
 	Game.changed.connect(_refresh)
 	Game.shift_started.connect(_on_shift_started)
@@ -81,10 +83,13 @@ func _ready() -> void:
 	Game.demon_dispatched.connect(_on_dispatched)
 	Game.pact_signed.connect(_on_pact)
 	Game.toast.connect(_show_toast)
+	Game.story_unlocked.connect(func(pages: Array) -> void: _comic.play(pages))
 	resized.connect(_relayout)
 
 	await get_tree().process_frame
 	_relayout()
+	# primera vez en la cocina: la introducción de la novela (páginas 1-3)
+	Game.story_unlock([1, 2, 3])
 	_refresh()
 
 
@@ -177,12 +182,19 @@ func _build_btnbar() -> void:
 	_btnbar = HBoxContainer.new()
 	_btnbar.add_theme_constant_override("separation", 8)
 	add_child(_btnbar)
-	_mk_barbtn("Árbol", "tree", func() -> void: _open_only(_tree))
-	_mk_barbtn("Despensa", "shop", func() -> void: _open_only(_shop))
+	_mk_barbtn("Árbol", "tree", func() -> void:
+		_open_only(_tree)
+		Game.story_unlock([12]))
+	_mk_barbtn("Despensa", "shop", func() -> void:
+		_open_only(_shop)
+		Game.story_unlock([12]))
 	_mk_barbtn("Inventario", "inventory", func() -> void: _open_only(_inv))
 	_mk_barbtn("Recompensas", "rewards", func() -> void: _open_only(_rewards))
 	_mk_barbtn("Códice", "codex", func() -> void: _open_only(_codex))
-	_mk_barbtn("Tragaperras", "slots", func() -> void: _open_only(_slot))
+	_mk_barbtn("Tragaperras", "slots", func() -> void:
+		_open_only(_slot)
+		Game.story_unlock([14]))
+	_mk_barbtn("Novela", "novel", func() -> void: _comic.open_gallery())
 	var contra := _mk_barbtn("Contrato", "contract", func() -> void: Game.prestige())
 	contra.name = "contra"
 	_mk_barbtn("Menú", "menu", func() -> void: get_tree().change_scene_to_file("res://src/game/menu.tscn"))
@@ -353,6 +365,7 @@ func _show_toast(text: String) -> void:
 
 func _refresh() -> void:
 	_refresh_btnbar()
+	Game.story_check_progress()
 	_start_btn.visible = not Game.shift_active
 
 
